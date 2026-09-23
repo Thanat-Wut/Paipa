@@ -1,31 +1,25 @@
 # Paipa implementation status
 
-The roadmap in [plans.md](./plans.md) says to start coding with M1 and leave Money and Social features until the Trip Core flow works.
+## M1 architecture
 
-## M1 code in this repository
+- Browser UUID identity is persisted in `localStorage` and copied to an HTTP-only soft-identity cookie for Next.js requests.
+- Next.js Server Actions and Route Handlers use the server-only Supabase client. The browser does not receive a privileged Supabase key or access trip tables directly.
+- `profiles.id`, trip ownership, and membership use the same UUID. Display names are not unique.
+- Invite Join starts at `maybe` without a signature. `going` requires an uploaded private signature and a timestamp; leaving `going` clears those fields and removes the active object.
+- Supabase Auth remains a managed Supabase service but is no longer part of the Paipa M1 application flow.
 
-- Next.js 16 App Router, TypeScript, Tailwind, Paipa responsive UI, and the old HTML prototype kept as a reference.
-- Supabase SSR clients and proxy, Email/Google sign-in, callback and session checks.
-- Trip create/list/view/edit/archive/delete; invite creation and preview; atomic Join; member roster, attendance, avatar/GIF upload, private signature upload.
-- Migration for profiles, trips, trip members, invites, RLS, secure RPCs, and storage buckets.
-- Automated checks: `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build`.
+## Migration and verification
 
-## Live Supabase connection
+- `supabase/migrations/20260923120004_simple_local_identity.sql` is applied to the connected Supabase project. It removes the profile-to-Auth reference and Auth profile trigger, replaces Auth-dependent policies and RPCs, and preserves existing UUID relationships and rows.
+- The migration aborts if existing membership rows violate the active commitment invariant, so an unreviewed signature or attendance value is not silently cleared.
+- SQL transaction coverage is in `supabase/tests/m1_transaction.sql`; it passed against the migrated project and rolled back its fixtures.
+- The real Playwright flow creates browser UUID identities directly and requires `SUPABASE_SECRET_KEY`; it has no Auth accounts, Supabase mocks, or credential-based skip.
+- Final `npm run test:e2e` passed: 1 passed, 0 failed, 0 skipped. The browser created identities, trip, invite, membership, avatar and signature objects, loaded the actual signature image as signer and owner, received 404 for unauthorized reads, changed Going back to Maybe and Not Going, and verified cleanup.
+- The previously confirmed test fixture was removed only after the strict preflight matched its exact profile, trip, membership, invite, Auth user, and two signature object paths. The post-run remote count query returned zero profiles, trips, memberships, invites, Auth users, signature objects, and avatar objects.
+- The migration is recorded remotely as version `20260923120004`. It preserved existing rows; only the separately confirmed test fixture was later removed.
+- Final regression: lint, typecheck, SQL transaction integration (rollback), 48 unit tests, full Playwright E2E, and production build all pass.
+- Soft identity is intentionally not strong authentication: a client can create or spoof a UUID identity. This is an accepted M1 limitation and should be considered before adding sensitive capabilities.
 
-- The user supplied an existing project, which is configured in Git-ignored `.env.local`. Never commit that file.
-- Applied migrations: `paipa_core`, `restrict_trip_rpc`, `backfill_existing_profiles`, and `index_core_foreign_keys`.
-- Verified all four public tables have RLS, the signature bucket is private, and anonymous callers cannot execute the write RPCs. An anonymous request to `preview_invite` returned HTTP 200; `create_trip` returned HTTP 401.
-- Ran `supabase/tests/m1_transaction.sql` on the live database. It simulated owner and member identities and checked trip creation, invite preview, hidden trips before Join, required existing signature, Join, duplicate Join, and roster visibility. The transaction rolled back; no test rows remained.
-- Backfilled the one Auth account that predated the migration. No Auth user now lacks a `profiles` row.
+## Scope
 
-## Integration work still needed
-
-- Configure Google OAuth and Auth redirect URLs if Google sign-in is desired.
-- Test the browser flow with two real authenticated accounts. A database transaction tested its underlying rules, but did not exercise real login cookies, email confirmation, or file uploads through the browser. A signup using a reserved test email was rejected by Supabase and created no test account.
-- Supabase's advisor still flags the deliberately public `preview_invite` function and the platform's `rls_auto_enable` event-trigger function. Auth's leaked-password protection is disabled in project settings; enable it before production.
-
-## Decisions and known limitation
-
-- The Supabase variable uses the current **publishable key** instead of the roadmap's older anon-key name, following current Supabase documentation.
-- The migration checks that `max_members` cannot be reduced below the current roster. Add an authenticated browser test for this case before production.
-- M2–M5 are not started.
+M2 and later features have not started.

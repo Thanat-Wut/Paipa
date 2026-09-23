@@ -15,10 +15,15 @@ export const createTripSchema = z.object({
 });
 
 export const inviteCodeSchema = z.string().regex(/^[A-Za-z0-9_-]{6,32}$/);
-export const joinTripSchema = z.object({
+const memberProfileFields = {
   displayName: z.string().trim().min(1).max(60),
   avatarType: z.enum(["emoji", "image", "gif"]).default("emoji"),
   avatarUrl: z.string().url().optional().or(z.literal("")),
+};
+
+export const joinTripSchema = z.object(memberProfileFields);
+export const updateMemberSchema = z.object({
+  ...memberProfileFields,
   signaturePath: z.string().max(300).optional().or(z.literal("")),
 });
 

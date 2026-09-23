@@ -11,9 +11,25 @@ describe("trip input", () => {
     expect(result.name).toBe("Pattaya 2026");
   });
 
+  it.each([
+    ["description longer than the database limit", { description: "x".repeat(501) }],
+    ["destination longer than the database limit", { destination: "x".repeat(121) }],
+    ["budget above the supported limit", { budgetPerPerson: 1000001 }],
+  ])("rejects %s", (_label, overrides) => {
+    expect(createTripSchema.safeParse({
+      name: "Pattaya 2026", startDate: "2026-11-01", endDate: "2026-11-03", maxMembers: 8,
+      ...overrides,
+    }).success).toBe(false);
+  });
+
   it("rejects malformed invite codes and empty member names", () => {
     expect(inviteCodeSchema.safeParse("../evil").success).toBe(false);
     expect(joinTripSchema.safeParse({ displayName: "   " }).success).toBe(false);
+  });
+
+  it("does not include commitment signature data in join input", () => {
+    const result = joinTripSchema.parse({ displayName: "Beam", signaturePath: "user-1/signature.png" });
+    expect(result).toEqual({ displayName: "Beam", avatarType: "emoji" });
   });
 
   it("keeps post-login redirects on local app paths", () => {

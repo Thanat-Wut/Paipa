@@ -1,22 +1,29 @@
 # Paipa ☁️
 
-เว็บสร้างห้องทริปกับเพื่อนตาม [plans.md](./plans.md) โดย Prototype เดิมอยู่ใน `tripmate_trip_collaboration_workspace.html` เพื่อใช้เป็นภาพอ้างอิงเท่านั้น
+Paipa M1 is a shared trip planner built with Next.js and Supabase PostgreSQL/Storage. The original TripMate HTML file remains a visual reference.
 
-## สถานะ
+## Identity model
 
-โค้ด M1 Trip Core (รอเชื่อม Supabase project เพื่อทดสอบ end-to-end): Next.js App Router, Supabase Auth (Email และ Google), สร้าง/แก้ไข/เก็บ/ลบทริป, ลิงก์เชิญ, Join, รายชื่อสมาชิก, รูป/GIF และลายเซ็น
+On first use, a person enters a display name. The browser creates a UUID with `crypto.randomUUID()` and stores `{ id, displayName }` in `localStorage`. Names may repeat; the UUID is the profile identity and is reused after reloads on that browser.
 
-Money, Board, Chat, Vote และ Plan ยังอยู่ใน milestone ถัดไป
+This is a soft identity for the M1 prototype, not secure authentication. It does not use Supabase Auth, email, password, or OAuth. A person's local identity is not recoverable on another device.
 
-## เริ่มต้น
+Joining an invite creates a `maybe` membership without a signature. A member signs only when confirming `going`; leaving `going` clears the active commitment and the server removes its private Storage object.
 
-1. `npm install`
-2. สร้าง Supabase project แล้วรัน migration ใน `supabase/migrations/`
-3. คัดลอก `.env.example` เป็น `.env.local` และใส่ URL กับ publishable key ของ project
-4. ตั้งค่า Supabase Auth URL Configuration: Site URL เป็น `http://localhost:3000` และเพิ่ม Redirect URL `http://localhost:3000/auth/callback*`
-5. เปิด Google provider ใน Supabase หากจะใช้ Google Login (Email Login ใช้ได้โดยไม่ต้องเปิด Google)
-6. `npm run dev`
+## Start locally
 
-ตรวจโค้ดด้วย `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`
+1. Install dependencies with `npm install`.
+2. Apply the migrations in `supabase/migrations/` to the project's database.
+3. Copy `.env.example` to `.env.local` and fill in the Supabase URL.
+4. Set the server-only `SUPABASE_SECRET_KEY` in the ignored `.env.local` file or process environment. Never expose this key with a `NEXT_PUBLIC_` variable. The publishable key is not used by the M1 application flow.
+5. Run `npm run dev`.
 
-**สำคัญ:** ใช้ publishable key ใน browser เท่านั้น ห้ามใส่ service role หรือ secret key ใน `NEXT_PUBLIC_*` ตัว migration เปิด RLS ในทุกตารางและเก็บลายเซ็นใน private bucket
+The server-only key is used by Next.js Server Actions and Route Handlers for database and Storage access. It is required for local use and the real Playwright flow.
+
+The one-time `npm run cleanup:confirmed-fixture` command is guarded to the single previously confirmed test profile, trip, invite, membership, Auth user, and two signature objects. It aborts if current rows or Storage contents differ from that exact fixture.
+
+## Verify
+
+Run `npm test`, `npm run lint`, `npm run typecheck`, `npm run test:e2e`, and `npm run build`. The SQL integration script is `supabase/tests/m1_transaction.sql` and runs inside a transaction that rolls back its fixtures.
+
+Money, Board, Chat, Vote, and planning features remain out of scope for M1.

@@ -3,8 +3,9 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
-import { createTripSchema, formString, inviteCodeSchema, joinTripSchema } from "@/lib/trip";
+import { requireIdentity } from "@/lib/identity-server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createTripSchema, formString, inviteCodeSchema, joinTripSchema, updateMemberSchema } from "@/lib/trip";
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -18,8 +19,10 @@ export async function createTrip(form: FormData) {
     maxMembers: formString(form, "maxMembers"),
   });
   if (!input.success) fail("/trips", input.error.issues[0]?.message ?? "ข้อมูลทริปไม่ถูกต้อง");
-  const { supabase } = await requireUser("/trips");
+  const identity = await requireIdentity("/trips");
+  const supabase = createAdminClient();
   const { data, error } = await supabase.rpc("create_trip", {
+    p_actor_id: identity.id,
     p_name: input.data.name, p_description: input.data.description,
     p_destination: input.data.destination, p_start_date: input.data.startDate,
     p_end_date: input.data.endDate, p_budget_per_person: input.data.budgetPerPerson,
@@ -32,11 +35,12 @@ export async function createTrip(form: FormData) {
 export async function createInvite(form: FormData) {
   const tripId = formString(form, "tripId");
   const path = `/trips/${tripId}/settings`;
-  const { supabase, userId } = await requireUser(path);
+  const identity = await requireIdentity(path);
+  const supabase = createAdminClient();
   const code = randomBytes(12).toString("base64url");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { error } = await supabase.from("trip_invites").insert({
-    trip_id: tripId, code, created_by: userId, expires_at: expiresAt,
+  const { error } = await supabase.rpc("create_invite", {
+    p_actor_id: identity.id, p_trip_id: tripId, p_code: code, p_expires_at: expiresAt,
   });
   if (error) fail(path, error.message);
   revalidatePath(path);
@@ -44,47 +48,67 @@ export async function createInvite(form: FormData) {
 
 export async function joinTrip(form: FormData) {
   const code = formString(form, "code");
-  const path = `/join/${code}`;
-  if (!inviteCodeSchema.safeParse(code).success) fail(path, "รหัสเชิญไม่ถูกต้อง");
+  if (!inviteCodeSchema.safeParse(code).success) return { ok: false as const, message: "รหัสเชิญไม่ถูกต้อง" };
   const input = joinTripSchema.safeParse({
     displayName: formString(form, "displayName"), avatarType: formString(form, "avatarType"),
-    avatarUrl: formString(form, "avatarUrl"), signaturePath: formString(form, "signaturePath"),
+    avatarUrl: formString(form, "avatarUrl"),
   });
-  if (!input.success) fail(path, input.error.issues[0]?.message ?? "ข้อมูลสมาชิกไม่ถูกต้อง");
-  const { supabase } = await requireUser(path);
+  if (!input.success) return { ok: false as const, message: input.error.issues[0]?.message ?? "ข้อมูลสมาชิกไม่ถูกต้อง" };
+  const identity = await requireIdentity(`/join/${code}`);
+  const supabase = createAdminClient();
   const { data, error } = await supabase.rpc("join_trip", {
+    p_actor_id: identity.id,
     p_code: code, p_display_name: input.data.displayName,
     p_avatar_type: input.data.avatarType, p_avatar_url: input.data.avatarUrl ?? "",
-    p_signature_path: input.data.signaturePath ?? "",
   });
-  if (error || !data) fail(path, error?.message ?? "เข้าร่วมทริปไม่สำเร็จ");
-  redirect(`/trips/${data}`);
+  if (error || !data) return { ok: false as const, message: error?.message ?? "เข้าร่วมทริปไม่สำเร็จ" };
+  revalidatePath(`/trips/${data}`);
+  return { ok: true as const, tripId: data };
 }
 
 export async function updateMember(form: FormData) {
   const tripId = formString(form, "tripId");
-  const path = `/trips/${tripId}/members`;
-  const input = joinTripSchema.safeParse({
+  const input = updateMemberSchema.safeParse({
     displayName: formString(form, "displayName"), avatarType: formString(form, "avatarType"),
     avatarUrl: formString(form, "avatarUrl"), signaturePath: formString(form, "signaturePath"),
   });
   const attendance = formString(form, "attendance");
-  if (!input.success || !["going", "maybe", "not_going"].includes(attendance)) fail(path, "ข้อมูลสมาชิกไม่ถูกต้อง");
-  const { supabase } = await requireUser(path);
-  const { error } = await supabase.rpc("update_member_profile", {
+  if (!input.success || !["going", "maybe", "not_going"].includes(attendance)) {
+    return { ok: false as const, message: "ข้อมูลสมาชิกไม่ถูกต้อง" };
+  }
+  if (attendance === "going" && !input.data.signaturePath) {
+    return { ok: false as const, message: "วาดลายเซ็นเพื่อยืนยันว่าจะไป" };
+  }
+  const identity = await requireIdentity(`/trips/${tripId}/members`);
+  const supabase = createAdminClient();
+  const { data: oldSignaturePath, error } = await supabase.rpc("update_member_profile", {
+    p_actor_id: identity.id,
     p_trip_id: tripId, p_display_name: input.data.displayName,
     p_avatar_type: input.data.avatarType, p_avatar_url: input.data.avatarUrl ?? "",
     p_signature_path: input.data.signaturePath ?? "", p_attendance: attendance,
   });
-  if (error) fail(path, error.message);
-  revalidatePath(path);
+  if (error) return { ok: false as const, message: error.message };
+  if (typeof oldSignaturePath === "string" && oldSignaturePath) {
+    const { error: cleanupError } = await supabase.storage.from("signatures").remove([oldSignaturePath]);
+    if (cleanupError) {
+      revalidatePath(`/trips/${tripId}/members`);
+      return { ok: true as const, warning: "บันทึกสถานะแล้ว แต่ลบลายเซ็นเดิมจาก Storage ไม่สำเร็จ" };
+    }
+  }
+  revalidatePath(`/trips/${tripId}/members`);
+  return { ok: true as const };
 }
 
 export async function leaveTrip(form: FormData) {
   const tripId = formString(form, "tripId");
-  const { supabase } = await requireUser(`/trips/${tripId}/members`);
-  const { error } = await supabase.rpc("leave_trip", { p_trip_id: tripId });
+  const identity = await requireIdentity(`/trips/${tripId}/members`);
+  const supabase = createAdminClient();
+  const { data: signaturePath, error } = await supabase.rpc("leave_trip", { p_actor_id: identity.id, p_trip_id: tripId });
   if (error) fail(`/trips/${tripId}/members`, error.message);
+  if (typeof signaturePath === "string" && signaturePath) {
+    const { error: cleanupError } = await supabase.storage.from("signatures").remove([signaturePath]);
+    if (cleanupError) fail(`/trips/${tripId}/members`, "ออกจากทริปแล้ว แต่ลบลายเซ็นเดิมจาก Storage ไม่สำเร็จ");
+  }
   redirect("/trips");
 }
 
@@ -98,13 +122,14 @@ export async function updateTrip(form: FormData) {
     maxMembers: formString(form, "maxMembers"),
   });
   if (!input.success) fail(path, input.error.issues[0]?.message ?? "ข้อมูลทริปไม่ถูกต้อง");
-  const { supabase } = await requireUser(path);
-  const { error } = await supabase.from("trips").update({
-    name: input.data.name, description: input.data.description, destination: input.data.destination,
-    start_date: input.data.startDate, end_date: input.data.endDate,
-    budget_per_person: input.data.budgetPerPerson, max_members: input.data.maxMembers,
-    updated_at: new Date().toISOString(),
-  }).eq("id", tripId);
+  const identity = await requireIdentity(path);
+  const supabase = createAdminClient();
+  const { error } = await supabase.rpc("update_trip", {
+    p_actor_id: identity.id, p_trip_id: tripId, p_name: input.data.name,
+    p_description: input.data.description, p_destination: input.data.destination,
+    p_start_date: input.data.startDate, p_end_date: input.data.endDate,
+    p_budget_per_person: input.data.budgetPerPerson, p_max_members: input.data.maxMembers,
+  });
   if (error) fail(path, error.message);
   revalidatePath(`/trips/${tripId}`);
 }
@@ -112,8 +137,8 @@ export async function updateTrip(form: FormData) {
 export async function archiveTrip(form: FormData) {
   const tripId = formString(form, "tripId");
   const path = `/trips/${tripId}/settings`;
-  const { supabase } = await requireUser(path);
-  const { error } = await supabase.from("trips").update({ status: "archived" }).eq("id", tripId);
+  const identity = await requireIdentity(path);
+  const { error } = await createAdminClient().rpc("archive_trip", { p_actor_id: identity.id, p_trip_id: tripId });
   if (error) fail(path, error.message);
   redirect("/trips");
 }
@@ -121,8 +146,8 @@ export async function archiveTrip(form: FormData) {
 export async function deleteTrip(form: FormData) {
   const tripId = formString(form, "tripId");
   const path = `/trips/${tripId}/settings`;
-  const { supabase } = await requireUser(path);
-  const { error } = await supabase.from("trips").delete().eq("id", tripId);
+  const identity = await requireIdentity(path);
+  const { error } = await createAdminClient().rpc("delete_trip", { p_actor_id: identity.id, p_trip_id: tripId });
   if (error) fail(path, error.message);
   redirect("/trips");
 }
