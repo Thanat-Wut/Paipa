@@ -1,0 +1,2860 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRIPMATE ☁️ TOY ROOM EDITION [PLIMORARIUM STYLE]</title>
+  
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Google Fonts: Fredoka (Cute Rounded Latin) & Prompt (Clean Thai Sans) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+            cute: ['Fredoka', 'Prompt', 'sans-serif'],
+          },
+          colors: {
+            toy: {
+              sky: '#e0f4ff',
+              skySoft: '#f0f9ff',
+              blue: '#38bdf8',
+              blueDeep: '#0284c7',
+              pink: '#f472b6',
+              pinkSoft: '#fdf2f8',
+              yellow: '#fde047',
+              yellowSoft: '#fefce8',
+              mint: '#4ade80',
+              mintSoft: '#f0fdf4',
+              lilac: '#c084fc',
+              cream: '#fffdfa',
+              card: '#ffffff',
+              textDark: '#1e293b',
+              textMuted: '#64748b'
+            }
+          },
+          boxShadow: {
+            'toy-sm': '0 4px 14px 0 rgba(56, 189, 248, 0.12), inset 0 2px 2px rgba(255, 255, 255, 0.8)',
+            'toy-card': '0 12px 32px -4px rgba(14, 165, 233, 0.12), inset 0 2px 4px rgba(255, 255, 255, 0.9)',
+            'toy-btn': '0 6px 18px rgba(2, 132, 199, 0.28), inset 0 2px 2px rgba(255, 255, 255, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.08)',
+            'toy-btn-pink': '0 6px 18px rgba(244, 114, 182, 0.35), inset 0 2px 2px rgba(255, 255, 255, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.08)',
+            'postit': '0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)',
+            'postit-drag': '0 25px 40px -5px rgba(0, 0, 0, 0.2), 0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Playful Grid Background from Toylume style */
+    body {
+      background-color: #eaf6ff;
+      background-image: 
+        radial-gradient(#bae6fd 1.8px, transparent 1.8px),
+        linear-gradient(180deg, #dcf0fa 0%, #f0f8ff 45%, #e6f4fb 100%);
+      background-size: 28px 28px, 100% 100%;
+      background-attachment: fixed;
+    }
+
+    /* Floating Cloud/Toy Keyframe Animations */
+    @keyframes toy-float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-7px) rotate(1deg); }
+    }
+    @keyframes toy-float-reverse {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(6px) rotate(-1.5deg); }
+    }
+    @keyframes toy-bounce-slow {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-4px) scale(1.02); }
+    }
+    @keyframes toy-wiggle {
+      0%, 100% { transform: rotate(-3deg); }
+      50% { transform: rotate(3deg); }
+    }
+    @keyframes shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+
+    .animate-toy-float { animation: toy-float 4.5s ease-in-out infinite; }
+    .animate-toy-float-rev { animation: toy-float-reverse 5s ease-in-out infinite; }
+    .animate-toy-bounce { animation: toy-bounce-slow 3s ease-in-out infinite; }
+    .animate-wiggle-hover:hover { animation: toy-wiggle 0.4s ease-in-out infinite; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(224, 242, 254, 0.6); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 9999px; border: 2px solid #e0f2fe; }
+    ::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
+
+    /* Washi Tape / Pushpins on Post-it */
+    .washi-tape {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%) rotate(-1.5deg);
+      width: 80px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px dashed rgba(203, 213, 225, 0.8);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      backdrop-filter: blur(2px);
+      z-index: 10;
+    }
+
+    /* Free Draggable Sticky Note Canvas styling */
+    .corkboard-desk {
+      background-color: #f7fafc;
+      background-image: 
+        radial-gradient(#cbd5e1 1.2px, transparent 1.2px),
+        linear-gradient(to bottom, #ffffff, #f1f5f9);
+      background-size: 20px 20px, 100% 100%;
+    }
+
+    .draggable-note {
+      position: absolute;
+      touch-action: none;
+      user-select: none;
+      transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+      cursor: grab;
+    }
+    .draggable-note:active {
+      cursor: grabbing;
+    }
+    .draggable-note.is-dragging {
+      transform: scale(1.06) rotate(1.5deg) !important;
+      box-shadow: 0 25px 45px -5px rgba(14, 165, 233, 0.25), 0 12px 20px -3px rgba(0, 0, 0, 0.08) !important;
+      z-index: 9999 !important;
+      transition: none;
+    }
+
+    /* Signature canvas */
+    .signature-canvas {
+      touch-action: none;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body class="text-toy-textDark font-sans antialiased min-h-screen flex flex-col pb-24 md:pb-6 selection:bg-toy-pink selection:text-white">
+
+  <!-- ==================== HEADER NAVIGATION ==================== -->
+  <header class="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b-2 border-white/80 shadow-sm px-4 py-2.5 sm:px-8">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      
+      <!-- Toy Logo & Trip Switcher -->
+      <div class="flex items-center gap-3">
+        <button onclick="navigate('landing')" class="group flex items-center gap-2.5 focus:outline-none">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-toy-blue to-sky-300 flex items-center justify-center text-2xl shadow-toy-btn transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+            🧸
+          </div>
+          <div class="text-left">
+            <span class="font-cute font-bold tracking-wide text-xl text-toy-blueDeep block leading-none">
+              Trip<span class="text-toy-pink">Mate</span>
+            </span>
+            <span class="text-[10px] font-cute tracking-wider text-sky-500 font-semibold uppercase">✨ PLAYROOM // ไปป่ะ!</span>
+          </div>
+        </button>
+
+        <!-- Room Selector Pill Capsule -->
+        <div id="trip-switcher-container" class="hidden md:flex items-center ml-4 pl-4 border-l-2 border-sky-100">
+          <button onclick="openTripSwitcherModal()" class="flex items-center gap-2 px-4 py-1.5 bg-sky-50/90 hover:bg-sky-100 border-2 border-white rounded-full text-xs font-cute font-semibold transition text-sky-800 shadow-toy-sm hover:scale-105 active:scale-95">
+            <span class="text-sm">🏝️</span>
+            <span id="header-trip-name" class="truncate max-w-[180px]">PATTAYA TOY ROOM 3D2N</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-sky-400"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Center Pill Navigation (Desktop) -->
+      <div class="hidden lg:flex items-center bg-white/90 p-1.5 rounded-full border-2 border-white shadow-toy-sm gap-1 font-cute">
+        <button onclick="navigate('dashboard')" id="top-nav-dashboard" class="px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition bg-toy-blue text-white shadow-toy-btn">
+          🏡 Dashboard
+        </button>
+        <button onclick="navigate('board')" id="top-nav-board" class="px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition text-toy-textMuted hover:text-toy-blueDeep hover:bg-sky-50">
+          📌 Memo Board
+        </button>
+        <button onclick="navigate('money')" id="top-nav-money" class="px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition text-toy-textMuted hover:text-toy-blueDeep hover:bg-sky-50">
+          💰 Piggy Bank
+        </button>
+        <button onclick="navigate('chat')" id="top-nav-chat" class="px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition text-toy-textMuted hover:text-toy-blueDeep hover:bg-sky-50 flex items-center gap-1.5">
+          💬 Squad Chat
+          <span class="w-2 h-2 rounded-full bg-toy-pink animate-ping"></span>
+        </button>
+        <button onclick="navigate('votes')" id="top-nav-votes" class="px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition text-toy-textMuted hover:text-toy-blueDeep hover:bg-sky-50">
+          🗳️ Toy Polls
+        </button>
+      </div>
+
+      <!-- Right Header Actions -->
+      <div class="flex items-center gap-2 font-cute">
+        <button onclick="refreshData(true)" title="Refresh Sync" class="w-9 h-9 flex items-center justify-center rounded-2xl bg-white hover:bg-sky-50 border-2 border-white shadow-toy-sm text-sky-600 transition active:scale-95">
+          <i data-lucide="sparkles" id="header-refresh-icon" class="w-4 h-4 text-toy-yellow animate-toy-bounce"></i>
+        </button>
+
+        <button onclick="openModal('invite-modal')" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-toy-pink to-rose-300 hover:opacity-95 text-white border-2 border-white rounded-full text-xs font-bold transition shadow-toy-btn-pink active:scale-95">
+          <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">INVITE SQUAD</span>
+        </button>
+
+        <div class="flex items-center pl-2 border-l-2 border-sky-100">
+          <button id="current-user-badge" onclick="openJoinModal()" class="flex items-center gap-2 bg-white border-2 border-white px-3 py-1 rounded-full shadow-toy-sm hover:border-toy-blue transition active:scale-95">
+            <span id="current-user-avatar" class="text-base animate-wiggle-hover">😎</span>
+            <span id="current-user-name" class="text-xs font-bold text-toy-textDark max-w-[85px] truncate">Nut (Leader)</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <div class="flex-1 flex max-w-7xl w-full mx-auto p-3 sm:p-5 gap-6">
+
+    <!-- DESKTOP SIDEBAR -->
+    <aside id="app-sidebar" class="hidden md:flex flex-col w-64 bg-white/80 backdrop-blur-md border-2 border-white rounded-3xl p-4 shadow-toy-card shrink-0 space-y-4">
+      <div class="px-2 pt-1 flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-2xl bg-sky-100 flex items-center justify-center text-lg">🎈</div>
+        <div>
+          <span class="text-[10px] font-cute tracking-widest uppercase text-sky-500 font-bold block">SHARED ROOM</span>
+          <h2 class="text-xs font-bold text-slate-800">PATTAYA_TRIP_2026</h2>
+        </div>
+      </div>
+
+      <nav class="space-y-1.5 font-cute text-xs">
+        <button onclick="navigate('dashboard')" id="nav-dashboard" class="sidebar-item active flex items-center justify-between w-full px-4 py-2.5 rounded-2xl font-bold transition bg-toy-blue text-white shadow-toy-btn">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+            <span>Dashboard</span>
+          </div>
+          <span class="text-[10px] bg-white/30 px-2 py-0.5 rounded-full">HOME</span>
+        </button>
+
+        <button onclick="navigate('board')" id="nav-board" class="sidebar-item flex items-center justify-between w-full px-4 py-2.5 rounded-2xl font-semibold transition text-slate-600 hover:bg-sky-50 hover:text-toy-blueDeep">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="sticky-note" class="w-4 h-4 text-amber-500"></i>
+            <span>Interactive Board</span>
+          </div>
+          <span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">DRAG 📌</span>
+        </button>
+
+        <button onclick="navigate('money')" id="nav-money" class="sidebar-item flex items-center justify-between w-full px-4 py-2.5 rounded-2xl font-semibold transition text-slate-600 hover:bg-sky-50 hover:text-toy-blueDeep">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="wallet" class="w-4 h-4 text-emerald-500"></i>
+            <span>Piggy Bank</span>
+          </div>
+          <span id="sidebar-money-badge" class="bg-toy-pink text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs">1</span>
+        </button>
+
+        <button onclick="navigate('chat')" id="nav-chat" class="sidebar-item flex items-center justify-between w-full px-4 py-2.5 rounded-2xl font-semibold transition text-slate-600 hover:bg-sky-50 hover:text-toy-blueDeep">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="message-circle" class="w-4 h-4 text-sky-500"></i>
+            <span>Squad Chat</span>
+          </div>
+          <span id="sidebar-chat-badge" class="bg-toy-blue text-white text-[10px] font-bold px-2 py-0.5 rounded-full">2</span>
+        </button>
+
+        <button onclick="navigate('votes')" id="nav-votes" class="sidebar-item flex items-center justify-between w-full px-4 py-2.5 rounded-2xl font-semibold transition text-slate-600 hover:bg-sky-50 hover:text-toy-blueDeep">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="vote" class="w-4 h-4 text-toy-lilac"></i>
+            <span>Toy Polls</span>
+          </div>
+          <span class="text-[10px] text-slate-400">VOTE</span>
+        </button>
+
+        <button onclick="navigate('plan')" id="nav-plan" class="sidebar-item flex items-center justify-between w-full px-4 py-2.5 rounded-2xl font-semibold transition text-slate-600 hover:bg-sky-50 hover:text-toy-blueDeep">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="calendar" class="w-4 h-4 text-rose-400"></i>
+            <span>Trip Timeline</span>
+          </div>
+          <span class="text-[10px] text-slate-400">3 DAYS</span>
+        </button>
+
+        <button onclick="navigate('members')" id="nav-members" class="sidebar-item flex items-center justify-between w-full px-4 py-2.5 rounded-2xl font-semibold transition text-slate-600 hover:bg-sky-50 hover:text-toy-blueDeep">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="users" class="w-4 h-4 text-emerald-500"></i>
+            <span>Playroom Squad</span>
+          </div>
+          <span class="text-[10px] text-emerald-600 font-bold">8/8</span>
+        </button>
+      </nav>
+
+      <!-- Mascot Card Widget (Toylume Character Box) -->
+      <div class="mt-auto bg-gradient-to-b from-sky-100 to-sky-50 border-2 border-white rounded-3xl p-4 text-center relative overflow-hidden shadow-toy-sm">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-white border-2 border-white shadow-toy-btn flex items-center justify-center text-3xl animate-toy-float mb-2">
+          🧸
+        </div>
+        <h4 class="font-cute font-bold text-xs text-toy-blueDeep">CREATIVE PLAYROOM</h4>
+        <p class="text-[11px] text-slate-500 font-sans mt-0.5">ลากแปะโน้ตไอเดียได้อิสระ ไม่จำกัดตำแหน่ง!</p>
+        <button onclick="navigate('board')" class="mt-3 w-full py-1.5 bg-white hover:bg-toy-blue hover:text-white text-toy-blueDeep border-2 border-white rounded-full text-xs font-cute font-bold shadow-xs transition active:scale-95">
+          OPEN CORKBOARD ➔
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 min-w-0 space-y-6">
+
+      <!-- ==================== VIEW: LANDING ==================== -->
+      <section id="view-landing" class="hidden">
+        <div class="relative bg-white/90 backdrop-blur-md rounded-[36px] p-8 sm:p-14 overflow-hidden border-4 border-white shadow-toy-card text-center">
+          <div class="max-w-2xl mx-auto space-y-5">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-100 text-toy-blueDeep font-cute text-xs rounded-full font-bold shadow-toy-sm animate-toy-bounce">
+              <span>✨</span> NEW 3D TOYROOM COLLABORATION PROTOCOL
+            </div>
+            <h1 class="text-4xl sm:text-6xl font-cute font-extrabold text-slate-900 tracking-tight leading-tight">
+              TRIP<span class="text-toy-blue">MATE</span><br>
+              <span class="text-toy-pink">PLAYROOM EDITION.</span>
+            </h1>
+            <p class="text-sm sm:text-base text-slate-600 font-medium max-w-lg mx-auto leading-relaxed">
+              รวมเพื่อนเที่ยวในห้องเดียว สนุกขึ้นด้วยการแปะ Post-it ลากขยับได้อย่างอิสระ คุมงบกองกลาง ตรวจสลิป และโหวตพร้อมกัน!
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-3 font-cute">
+              <button onclick="openModal('create-trip-modal')" class="px-8 py-3.5 bg-gradient-to-r from-toy-blue to-sky-400 hover:brightness-105 text-white rounded-full font-bold text-sm tracking-wide transition shadow-toy-btn active:scale-95 flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> CREATE NEW TRIP
+              </button>
+              <button onclick="navigate('board')" class="px-8 py-3.5 bg-white hover:bg-sky-50 text-toy-blueDeep border-2 border-sky-100 rounded-full font-bold text-sm tracking-wide transition shadow-toy-sm active:scale-95">
+                TRY POST-IT BOARD 📌
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: DASHBOARD ==================== -->
+      <section id="view-dashboard" class="space-y-6">
+
+        <!-- Cute 3D Toy Hero Banner (Inspired by Plimorarium Header) -->
+        <div class="relative bg-gradient-to-r from-[#d0f0fd] via-[#e2f5ff] to-[#fdeef7] rounded-[36px] p-6 sm:p-9 border-4 border-white shadow-toy-card overflow-hidden">
+          
+          <!-- Decorative Floating Cloud Bubbles in background -->
+          <div class="absolute -top-6 -right-6 w-36 h-36 rounded-full bg-white/40 blur-xl pointer-events-none"></div>
+          <div class="absolute bottom-2 right-48 text-6xl opacity-20 pointer-events-none animate-toy-float">🏝️</div>
+          <div class="absolute top-4 right-16 text-5xl opacity-20 pointer-events-none animate-toy-float-rev">🧸</div>
+
+          <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-center gap-2 font-cute text-xs">
+                <span class="px-3 py-1 bg-white/90 text-toy-blueDeep rounded-full font-bold shadow-xs flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-toy-blue animate-ping"></span> TOYROOM #004
+                </span>
+                <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold shadow-xs">
+                  ⏰ T-MINUS 52 DAYS TO GO!
+                </span>
+              </div>
+
+              <!-- Main Title -->
+              <div>
+                <h1 class="text-3xl sm:text-5xl font-cute font-extrabold text-slate-800 tracking-tight leading-none">
+                  พัทยา 3 วัน 2 คืน 2026 🌊
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-600 font-medium mt-1.5 max-w-xl">
+                  14 - 16 พ.ย. 2026 • สมาชิกคอนเฟิร์ม 8 คน • ปิ้งย่างริมหาด พูลวิลล่า และดำน้ำเกาะล้าน
+                </p>
+              </div>
+
+              <!-- Pill Tags -->
+              <div class="flex flex-wrap items-center gap-2 font-cute text-xs pt-1">
+                <span class="px-3.5 py-1 bg-white text-slate-700 rounded-full font-bold shadow-xs border border-white">
+                  📍 BANGKOK ➔ PATTAYA
+                </span>
+                <span class="px-3.5 py-1 bg-toy-pinkSoft text-pink-700 rounded-full font-bold shadow-xs border border-pink-100">
+                  💰 ฿3,500 / AGENT
+                </span>
+                <span class="px-3.5 py-1 bg-sky-100 text-sky-800 rounded-full font-bold shadow-xs">
+                  🎯 TARGET: ฿28,000
+                </span>
+              </div>
+            </div>
+
+            <!-- Cute Mascot & Action Capsule -->
+            <div class="shrink-0 flex flex-col sm:flex-row md:flex-col gap-2.5 font-cute">
+              <button onclick="openModal('submit-payment-modal')" class="px-6 py-3 bg-gradient-to-r from-toy-blue to-sky-500 hover:brightness-105 text-white rounded-full font-bold text-xs sm:text-sm tracking-wide transition shadow-toy-btn active:scale-95 flex items-center justify-center gap-2">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                <span>TRANSFER SLIP</span>
+              </button>
+              <button onclick="navigate('board')" class="px-6 py-2.5 bg-white hover:bg-sky-50 text-toy-blueDeep border-2 border-sky-100 rounded-full font-bold text-xs tracking-wide transition shadow-toy-sm active:scale-95 flex items-center justify-center gap-1.5">
+                <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-amber-500"></i>
+                <span>OPEN POST-IT BOARD</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cute Piggy Bank Treasury Card -->
+        <div class="bg-white/90 backdrop-blur-md rounded-[32px] p-6 sm:p-7 border-4 border-white shadow-toy-card space-y-5">
+          
+          <div class="flex flex-wrap items-center justify-between gap-4 border-b-2 border-sky-50 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-2xl bg-sky-100 text-toy-blueDeep flex items-center justify-center text-2xl shadow-toy-sm animate-toy-bounce">
+                🐷
+              </div>
+              <div>
+                <h2 class="font-cute text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
+                  <span>TREASURY PIGGY BANK</span>
+                  <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold">LIVE SYNC</span>
+                </h2>
+                <span class="text-[11px] text-slate-400 font-cute font-medium">กองกลาง & ตรวจสอบสลิปแบบเรียลไทม์</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 font-cute">
+              <button onclick="openModal('submit-payment-modal')" class="px-4 py-2 bg-gradient-to-r from-toy-pink to-rose-400 text-white font-bold text-xs rounded-full transition shadow-toy-btn-pink active:scale-95">
+                + แจ้งโอนสลิป
+              </button>
+              <button onclick="navigate('money')" class="px-4 py-2 bg-sky-50 hover:bg-sky-100 text-toy-blueDeep font-bold text-xs rounded-full transition border-2 border-white shadow-xs">
+                MANAGE TREASURY ➔
+              </button>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="space-y-2">
+            <div class="flex justify-between font-cute text-xs">
+              <span class="text-slate-600 font-bold">
+                COLLECTED (VERIFIED): <strong class="text-toy-blueDeep text-sm">฿<span id="dash-collected">21,000</span></strong>
+              </span>
+              <span class="text-toy-pink font-bold text-sm" id="dash-progress-percent">75%</span>
+            </div>
+            <div class="w-full bg-sky-100 h-4 rounded-full p-0.5 border border-white overflow-hidden flex shadow-inner">
+              <div id="dash-budget-bar" class="h-full bg-gradient-to-r from-toy-blue via-sky-400 to-toy-pink rounded-full transition-all duration-500 shadow-sm" style="width: 75%"></div>
+            </div>
+          </div>
+
+          <!-- 4 Stat Pill Pods -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-left font-cute">
+            <div class="bg-sky-50/80 border-2 border-white p-3.5 rounded-2xl shadow-toy-sm flex flex-col justify-between">
+              <div>
+                <span class="text-slate-400 text-[10px] uppercase font-bold block mb-1">🎯 TARGET BUDGET</span>
+                <span class="text-lg font-bold text-slate-800">฿28,000</span>
+              </div>
+              <span class="text-[10px] text-slate-500 mt-2">8 AGENTS × ฿3.5K</span>
+            </div>
+
+            <div class="bg-amber-50/80 border-2 border-white p-3.5 rounded-2xl shadow-toy-sm flex flex-col justify-between">
+              <div>
+                <span class="text-amber-600 text-[10px] uppercase font-bold block mb-1">⏳ PENDING SLIP</span>
+                <span class="text-lg font-bold text-amber-700" id="dash-pending">฿3,500</span>
+              </div>
+              <span class="text-[10px] text-amber-600/80 mt-2">WAITING OWNER CHECK</span>
+            </div>
+
+            <div class="bg-rose-50/80 border-2 border-white p-3.5 rounded-2xl shadow-toy-sm flex flex-col justify-between">
+              <div>
+                <span class="text-rose-600 text-[10px] uppercase font-bold block mb-1">🧾 TOTAL SPENT</span>
+                <span class="text-lg font-bold text-rose-600" id="dash-spent">฿12,450</span>
+              </div>
+              <span class="text-[10px] text-rose-500/80 mt-2">4 EXPENSES LOGGED</span>
+            </div>
+
+            <div class="bg-emerald-50/80 border-2 border-white p-3.5 rounded-2xl shadow-toy-sm flex flex-col justify-between">
+              <div>
+                <span class="text-emerald-600 text-[10px] uppercase font-bold block mb-1">✨ AVAILABLE BALANCE</span>
+                <span class="text-lg font-bold text-emerald-600" id="dash-remaining">฿8,550</span>
+              </div>
+              <span class="text-[10px] text-emerald-600/80 mt-2">READY IN FUND</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3-Column Highlights: Chat, Polls & Board Preview -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          <!-- 1. LIVE CHAT PREVIEW -->
+          <div class="bg-white/90 backdrop-blur-md border-4 border-white p-5 rounded-[30px] shadow-toy-card flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-3 border-b-2 border-sky-50 mb-3 font-cute">
+                <div class="flex items-center gap-2">
+                  <span class="text-lg">💬</span>
+                  <h3 class="font-bold text-slate-800 text-sm">SQUAD CHAT</h3>
+                </div>
+                <button onclick="navigate('chat')" class="text-xs text-toy-blueDeep hover:underline font-bold">
+                  FULL ROOM ➔
+                </button>
+              </div>
+              <div id="dash-recent-chat" class="space-y-2.5">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+            <button onclick="navigate('chat')" class="mt-4 w-full py-2.5 bg-sky-50 hover:bg-sky-100 text-toy-blueDeep border-2 border-white rounded-2xl text-xs font-cute font-bold transition shadow-toy-sm flex items-center justify-center gap-2">
+              <i data-lucide="message-square" class="w-3.5 h-3.5"></i> JOIN LIVE DISCUSSION
+            </button>
+          </div>
+
+          <!-- 2. ACTIVE VOTE PREVIEW -->
+          <div class="bg-white/90 backdrop-blur-md border-4 border-white p-5 rounded-[30px] shadow-toy-card">
+            <div class="flex items-center justify-between pb-3 border-b-2 border-sky-50 mb-3 font-cute">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">🗳️</span>
+                <h3 class="font-bold text-slate-800 text-sm">ACTIVE POLL</h3>
+              </div>
+              <button onclick="navigate('votes')" class="text-xs text-toy-pink hover:underline font-bold">
+                ALL POLLS
+              </button>
+            </div>
+            <div id="dash-featured-poll" class="p-3.5 bg-sky-50/60 rounded-2xl border-2 border-white">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- 3. INTERACTIVE BOARD PREVIEW -->
+          <div class="bg-white/90 backdrop-blur-md border-4 border-white p-5 rounded-[30px] shadow-toy-card">
+            <div class="flex items-center justify-between pb-3 border-b-2 border-sky-50 mb-3 font-cute">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">📌</span>
+                <h3 class="font-bold text-slate-800 text-sm">MEMO POST-IT</h3>
+              </div>
+              <button onclick="navigate('board')" class="text-xs text-toy-blueDeep hover:underline font-bold">
+                OPEN BOARD
+              </button>
+            </div>
+            <div id="dash-recent-notes" class="space-y-2.5">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ==================== VIEW: INTERACTIVE STICKY NOTE BOARD ==================== -->
+      <section id="view-board" class="hidden space-y-4">
+        
+        <!-- Board Header & Controls -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 backdrop-blur-md border-4 border-white p-6 rounded-[32px] shadow-toy-card">
+          <div>
+            <div class="flex items-center gap-2 font-cute text-xs text-toy-blueDeep font-bold uppercase mb-1">
+              <span>🧸</span>
+              <span>INTERACTIVE PLAY CORKBOARD</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-cute font-extrabold text-slate-900">📌 กระดานเสนอไอเดีย (Free Drag)</h2>
+            <p class="text-xs text-slate-500 font-medium">คุณสามารถ <strong class="text-toy-blueDeep">คลิกแล้วลากโน้ตไปวางตรงไหนก็ได้</strong> บนกระดานเหมือนเอา Post-it มาแปะจริง!</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 font-cute">
+            <button onclick="resetBoardLayout()" class="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-toy-blueDeep border-2 border-white rounded-full font-bold text-xs transition shadow-toy-sm active:scale-95 flex items-center gap-1.5" title="จัดระเบียบโน้ตใหม่">
+              <i data-lucide="layout" class="w-3.5 h-3.5"></i> จัดเรียงให้อัตโนมัติ
+            </button>
+            <button onclick="openModal('add-note-modal')" class="px-4 py-2 bg-gradient-to-r from-toy-blue to-sky-400 hover:brightness-105 text-white rounded-full font-bold text-xs transition shadow-toy-btn active:scale-95 flex items-center gap-1.5">
+              <i data-lucide="plus" class="w-4 h-4"></i> + แปะ POST-IT ใหม่
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Chips & Instruction Banner -->
+        <div class="flex flex-wrap items-center justify-between gap-3 px-2">
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 font-cute text-xs font-semibold">
+            <button onclick="filterBoardNotes('all')" class="note-filter-btn px-4 py-1.5 bg-toy-blue text-white rounded-full shadow-toy-btn">ทั้งหมด</button>
+            <button onclick="filterBoardNotes('Food')" class="note-filter-btn px-4 py-1.5 bg-white border-2 border-white text-slate-600 hover:bg-sky-50 rounded-full shadow-xs">🍜 ร้านอาหาร</button>
+            <button onclick="filterBoardNotes('Activity')" class="note-filter-btn px-4 py-1.5 bg-white border-2 border-white text-slate-600 hover:bg-sky-50 rounded-full shadow-xs">🎢 กิจกรรม</button>
+            <button onclick="filterBoardNotes('Place')" class="note-filter-btn px-4 py-1.5 bg-white border-2 border-white text-slate-600 hover:bg-sky-50 rounded-full shadow-xs">🏝️ สถานที่</button>
+            <button onclick="filterBoardNotes('Important')" class="note-filter-btn px-4 py-1.5 bg-white border-2 border-white text-slate-600 hover:bg-sky-50 rounded-full shadow-xs">⚠️ ข้อสำคัญ</button>
+          </div>
+          <div class="text-[11px] font-cute text-slate-500 flex items-center gap-1 bg-white/70 px-3 py-1 rounded-full border border-white">
+            <i data-lucide="move" class="w-3.5 h-3.5 text-sky-500"></i> ลากโน้ตด้วยเมาส์หรือนิ้วได้เลย
+          </div>
+        </div>
+
+        <!-- FREE DRAGGABLE CANVAS DESK (Corkboard) -->
+        <div id="corkboard-canvas" class="corkboard-desk relative w-full h-[640px] sm:h-[680px] rounded-[36px] border-4 border-white shadow-toy-card overflow-hidden">
+          <!-- Decorative corkboard stamps/pins -->
+          <div class="absolute top-4 left-6 text-xs font-cute text-slate-300 select-none pointer-events-none font-bold">
+            TRIP CORKBOARD // FREE DRAG & DROP
+          </div>
+          <div class="absolute bottom-4 right-6 text-4xl opacity-15 select-none pointer-events-none">
+            🏖️ 🍦 🌴
+          </div>
+
+          <!-- Draggable Sticky Notes are injected here via JS -->
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: MONEY MODULE ==================== -->
+      <section id="view-money" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 backdrop-blur-md border-4 border-white p-6 rounded-[32px] shadow-toy-card">
+          <div>
+            <div class="flex items-center gap-2 font-cute text-xs text-toy-pink font-bold uppercase mb-1">
+              <span>💰</span>
+              <span>TREASURY MANAGEMENT</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-cute font-extrabold text-slate-900">🐷 กองกลาง & การเงิน</h2>
+            <p class="text-xs text-slate-500">ตรวจสลิปโอนเงิน บันทึกใบเสร็จค่าใช้จ่าย และคำนวณเงินคงเหลือแบบเรียลไทม์</p>
+          </div>
+          <div class="flex items-center gap-2 font-cute">
+            <button onclick="openModal('submit-payment-modal')" class="px-4 py-2.5 bg-gradient-to-r from-toy-blue to-sky-400 text-white rounded-full font-bold text-xs transition shadow-toy-btn active:scale-95 flex items-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5"></i> แจ้งโอนสลิป
+            </button>
+            <button onclick="openModal('add-expense-modal')" class="px-4 py-2.5 bg-white hover:bg-sky-50 text-toy-blueDeep border-2 border-sky-100 rounded-full font-bold text-xs transition shadow-toy-sm active:scale-95 flex items-center gap-1.5">
+              <i data-lucide="receipt" class="w-3.5 h-3.5"></i> + บันทึกค่าใช้จ่าย
+            </button>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs for Money -->
+        <div class="flex bg-white/90 p-1.5 rounded-full border-2 border-white shadow-toy-sm font-cute text-xs font-bold gap-2 max-w-md mx-auto sm:mx-0">
+          <button onclick="switchMoneyTab('contributions')" id="tab-money-contributions" class="flex-1 py-2.5 rounded-full bg-toy-blue text-white shadow-toy-btn flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="users" class="w-4 h-4"></i> สมาชิกทริป
+          </button>
+          <button onclick="switchMoneyTab('proofs')" id="tab-money-proofs" class="flex-1 py-2.5 rounded-full text-slate-600 hover:text-toy-blueDeep flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="shield-check" class="w-4 h-4"></i> ตรวจสอบสลิป
+            <span id="pending-proof-badge" class="bg-toy-pink text-white text-[10px] px-2 py-0.5 rounded-full font-bold">1</span>
+          </button>
+          <button onclick="switchMoneyTab('expenses')" id="tab-money-expenses" class="flex-1 py-2.5 rounded-full text-slate-600 hover:text-toy-blueDeep flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="receipt" class="w-4 h-4"></i> ค่าใช้จ่าย
+          </button>
+        </div>
+
+        <!-- TAB CONTENT 1: MEMBER CONTRIBUTIONS -->
+        <div id="money-content-contributions" class="bg-white/90 backdrop-blur-md p-6 rounded-[32px] border-4 border-white shadow-toy-card space-y-4">
+          <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3 font-cute">
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm">MEMBER PAYMENT STATUS [฿3,500/คน]</h3>
+              <p class="text-xs text-slate-400 font-sans">เงินจะนับเข้ากองกลางก็ต่อเมื่อเจ้าของทริปอนุมัติสลิปแล้วเท่านั้น</p>
+            </div>
+          </div>
+          <div id="member-contribution-list" class="divide-y-2 divide-sky-50">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: SLIP VERIFICATION QUEUE -->
+        <div id="money-content-proofs" class="hidden bg-white/90 backdrop-blur-md p-6 rounded-[32px] border-4 border-white shadow-toy-card space-y-4">
+          <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3 font-cute">
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <span>🔎</span> สลิปที่รอยืนยัน (Payment Queue)
+              </h3>
+              <p class="text-xs text-slate-400 font-sans">เฉพาะ Owner หรือผู้ดูแลเงินที่สามารถกดอนุมัติหรือปฏิเสธยอดได้</p>
+            </div>
+          </div>
+          <div id="payment-submissions-list" class="space-y-3">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 3: EXPENSES RECORD -->
+        <div id="money-content-expenses" class="hidden bg-white/90 backdrop-blur-md p-6 rounded-[32px] border-4 border-white shadow-toy-card space-y-4">
+          <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3 font-cute">
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <span>🧾</span> บันทึกค่าใช้จ่ายทั้งหมด
+              </h3>
+              <p class="text-xs text-slate-400 font-sans">หักยอดออกจากเงินกองกลางอัตโนมัติ</p>
+            </div>
+          </div>
+          <div id="expense-history-list" class="space-y-2.5">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: TRIP CHAT ==================== -->
+      <section id="view-chat" class="hidden h-[calc(100vh-145px)] md:h-[calc(100vh-110px)] flex flex-col bg-white/90 backdrop-blur-md rounded-[36px] border-4 border-white shadow-toy-card overflow-hidden">
+        
+        <!-- Chat Header -->
+        <div class="px-6 py-3.5 border-b-2 border-sky-50 flex items-center justify-between bg-sky-50/50">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-white text-toy-blueDeep flex items-center justify-center text-xl shadow-toy-sm animate-toy-bounce">
+              💬
+            </div>
+            <div>
+              <h3 class="font-cute font-bold text-slate-800 text-sm flex items-center gap-2">
+                SQUAD CHATROOM
+                <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping"></span>
+              </h3>
+              <p class="text-[11px] text-slate-500 font-cute">8 AGENTS // TWO-WAY NOTE SYNC ACTIVE</p>
+            </div>
+          </div>
+
+          <div class="flex bg-white p-1 rounded-full border-2 border-white text-xs font-cute font-bold shadow-toy-sm">
+            <button onclick="filterChat('all')" id="chat-filter-all" class="px-3 py-1 rounded-full bg-toy-blue text-white shadow-xs">ALL</button>
+            <button onclick="filterChat('note_reference')" id="chat-filter-notes" class="px-3 py-1 rounded-full text-slate-500 hover:text-toy-blueDeep">📌 NOTES</button>
+          </div>
+        </div>
+
+        <!-- Chat Stream Messages -->
+        <div id="chat-messages-container" class="chat-scroll flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-sky-50/20">
+          <!-- Injected via JS -->
+        </div>
+
+        <!-- Replying Banner -->
+        <div id="chat-reply-banner" class="hidden px-5 py-2 bg-sky-100 border-t-2 border-toy-blue text-xs text-toy-blueDeep flex items-center justify-between font-cute">
+          <div class="flex items-center gap-2 truncate">
+            <i data-lucide="reply" class="w-4 h-4 text-toy-blue shrink-0"></i>
+            <span id="chat-reply-banner-text" class="truncate font-bold">REPLYING TO NOTE...</span>
+          </div>
+          <button onclick="cancelChatReply()" class="text-slate-400 hover:text-slate-600 p-1">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Chat Input Form -->
+        <div class="p-3 sm:p-4 border-t-2 border-sky-50 bg-white">
+          <form onsubmit="handleSendChatMessage(event)" class="flex items-center gap-2">
+            <button type="button" onclick="openShareNoteModal()" title="แชร์ Note จากกระดานเข้าแชท" class="p-2.5 rounded-2xl bg-sky-50 hover:bg-sky-100 text-toy-blueDeep border-2 border-white shadow-toy-sm transition active:scale-95">
+              <i data-lucide="sticky-note" class="w-4 h-4 text-amber-500"></i>
+            </button>
+            <input type="text" id="chat-input-text" autocomplete="off" placeholder="พิมพ์ข้อความ... หรือกดไอคอนเพื่อดึง Note มาคุย" class="flex-1 px-4 py-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-toy-blue text-xs sm:text-sm font-sans">
+            <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-toy-blue to-sky-400 hover:brightness-105 text-white rounded-2xl font-cute font-bold text-xs sm:text-sm flex items-center gap-1.5 transition shadow-toy-btn active:scale-95">
+              <span>SEND</span>
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: VOTING POLLS ==================== -->
+      <section id="view-votes" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 backdrop-blur-md border-4 border-white p-6 rounded-[32px] shadow-toy-card">
+          <div>
+            <div class="flex items-center gap-2 font-cute text-xs text-toy-lilac font-bold uppercase mb-1">
+              <span>🗳️</span>
+              <span>SQUAD DECISION PROTOCOL</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-cute font-extrabold text-slate-900">🗳️ ผลโหวตและการตัดสินใจ</h2>
+            <p class="text-xs text-slate-500 font-sans">โหวตร้านอาหาร เวลาออกเดินทาง หรือกิจกรรมที่อยากทำร่วมกัน</p>
+          </div>
+          <button onclick="openModal('create-poll-modal')" class="px-5 py-2.5 bg-gradient-to-r from-toy-lilac to-purple-400 hover:brightness-105 text-white rounded-full font-cute font-bold text-xs transition shadow-toy-btn active:scale-95 flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> + NEW TOY POLL
+          </button>
+        </div>
+
+        <div id="polls-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: TIMELINE PLAN ==================== -->
+      <section id="view-plan" class="hidden space-y-6">
+        <div class="bg-white/90 backdrop-blur-md border-4 border-white p-6 rounded-[32px] shadow-toy-card">
+          <div class="flex items-center gap-2 font-cute text-xs text-toy-blueDeep font-bold uppercase mb-1">
+            <span>📅</span>
+            <span>MISSION TIMELINE</span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-cute font-extrabold text-slate-900">📅 แผนการเดินทาง</h2>
+          <p class="text-xs text-slate-500">กำหนดการกิจกรรม 3 วัน 2 คืน</p>
+        </div>
+
+        <div class="bg-white/90 backdrop-blur-md p-6 sm:p-8 rounded-[36px] border-4 border-white shadow-toy-card max-w-3xl space-y-8 font-cute">
+          <div>
+            <span class="inline-block px-4 py-1.5 bg-sky-100 text-toy-blueDeep rounded-full text-xs font-bold mb-4 shadow-toy-sm">
+              🎈 DAY 01 // 14 NOV 2026
+            </span>
+            <div class="border-l-4 border-sky-100 pl-5 space-y-6 ml-2 font-sans">
+              <div class="relative">
+                <div class="absolute -left-[27px] top-0.5 w-4 h-4 rounded-full bg-toy-blue border-2 border-white shadow-xs"></div>
+                <span class="text-xs font-cute font-bold text-toy-blueDeep">08:00 น.</span>
+                <h4 class="font-bold text-slate-800 text-sm">จุดนัดพบ ปั๊มบางจาก บางนา</h4>
+                <p class="text-xs text-slate-500">รวมตัวขึ้นรถตู้ 2 คัน เช็คสัมภาระ</p>
+              </div>
+              <div class="relative">
+                <div class="absolute -left-[27px] top-0.5 w-4 h-4 rounded-full bg-toy-yellow border-2 border-white shadow-xs"></div>
+                <span class="text-xs font-cute font-bold text-amber-600">11:30 น.</span>
+                <h4 class="font-bold text-slate-800 text-sm">แวะกินข้าวเที่ยง ร้านลุงไสว ซีฟู้ด</h4>
+                <p class="text-xs text-slate-500">จ่ายจากเงินกองกลาง</p>
+              </div>
+              <div class="relative">
+                <div class="absolute -left-[27px] top-0.5 w-4 h-4 rounded-full bg-toy-mint border-2 border-white shadow-xs"></div>
+                <span class="text-xs font-cute font-bold text-emerald-600">14:00 น.</span>
+                <h4 class="font-bold text-slate-800 text-sm">Check-in พูลวิลล่า พัทยาใต้</h4>
+                <p class="text-xs text-slate-500">พักผ่อน ว่ายน้ำ ร้องคาราโอเกะ</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== VIEW: MEMBERS & SIGNATURES ==================== -->
+      <section id="view-members" class="hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 backdrop-blur-md border-4 border-white p-6 rounded-[32px] shadow-toy-card">
+          <div>
+            <div class="flex items-center gap-2 font-cute text-xs text-emerald-600 font-bold uppercase mb-1">
+              <span>👥</span>
+              <span>PLAYROOM ROSTER & PLEDGE</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-cute font-extrabold text-slate-900">👥 สมาชิก & ลายเซ็นสัญญาใจ</h2>
+            <p class="text-xs text-slate-500">รายชื่อสมาชิกพร้อมลายเซ็นสดการันตีความพร้อมเที่ยว</p>
+          </div>
+          <button onclick="openJoinModal()" class="px-5 py-2.5 bg-gradient-to-r from-toy-mint to-emerald-400 hover:brightness-105 text-white rounded-full font-cute font-bold text-xs transition shadow-toy-btn active:scale-95 flex items-center gap-1.5">
+            <i data-lucide="pen-tool" class="w-4 h-4"></i> EDIT MY PROFILE & SIGNATURE
+          </button>
+        </div>
+
+        <div id="full-members-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- Injected via JS -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ==================== MOBILE BOTTOM NAVIGATION ==================== -->
+  <nav class="md:hidden fixed bottom-3 left-3 right-3 z-40 bg-white/90 backdrop-blur-lg border-2 border-white rounded-3xl px-3 py-2 shadow-toy-card">
+    <div class="flex items-center justify-around font-cute">
+      <button onclick="navigate('dashboard')" id="m-nav-dashboard" class="flex flex-col items-center gap-1 text-toy-blue focus:outline-none">
+        <i data-lucide="layout-grid" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold">HOME</span>
+      </button>
+      <button onclick="navigate('board')" id="m-nav-board" class="flex flex-col items-center gap-1 text-slate-400 hover:text-toy-blue focus:outline-none">
+        <i data-lucide="sticky-note" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold">BOARD</span>
+      </button>
+      <button onclick="navigate('money')" id="m-nav-money" class="relative flex flex-col items-center gap-1 text-slate-400 hover:text-toy-blue focus:outline-none">
+        <i data-lucide="wallet" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold">MONEY</span>
+        <span id="m-money-badge" class="hidden absolute -top-1 right-2 w-2 h-2 rounded-full bg-toy-pink"></span>
+      </button>
+      <button onclick="navigate('chat')" id="m-nav-chat" class="relative flex flex-col items-center gap-1 text-slate-400 hover:text-toy-blue focus:outline-none">
+        <i data-lucide="message-circle" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold">CHAT</span>
+        <span id="m-chat-badge" class="absolute -top-1 right-1 w-2 h-2 rounded-full bg-toy-blue"></span>
+      </button>
+      <button onclick="openMobileMoreMenu()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-toy-blue focus:outline-none">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold">MORE</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile More Menu Sheet -->
+  <div id="mobile-more-sheet" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-end font-cute">
+    <div class="bg-white border-t-4 border-sky-100 w-full rounded-t-[36px] p-6 space-y-3 shadow-2xl">
+      <div class="w-12 h-1.5 bg-sky-200 rounded-full mx-auto mb-4"></div>
+      <h3 class="font-bold text-slate-800 text-xs tracking-wider uppercase mb-2">🎈 PLAYROOM COMMANDS</h3>
+      <button onclick="navigate('votes'); closeMobileMoreMenu()" class="flex items-center gap-3 w-full p-3.5 rounded-2xl hover:bg-sky-50 text-sm font-bold text-slate-700">
+        <i data-lucide="vote" class="w-4 h-4 text-toy-lilac"></i> SQUAD POLLS
+      </button>
+      <button onclick="navigate('plan'); closeMobileMoreMenu()" class="flex items-center gap-3 w-full p-3.5 rounded-2xl hover:bg-sky-50 text-sm font-bold text-slate-700">
+        <i data-lucide="calendar" class="w-4 h-4 text-toy-blue"></i> TRIP TIMELINE
+      </button>
+      <button onclick="navigate('members'); closeMobileMoreMenu()" class="flex items-center gap-3 w-full p-3.5 rounded-2xl hover:bg-sky-50 text-sm font-bold text-slate-700">
+        <i data-lucide="users" class="w-4 h-4 text-emerald-500"></i> AGENT SIGNATURES
+      </button>
+      <button onclick="refreshData(true); closeMobileMoreMenu()" class="flex items-center gap-3 w-full p-3.5 rounded-2xl hover:bg-sky-50 text-sm font-bold text-slate-700">
+        <i data-lucide="refresh-cw" class="w-4 h-4 text-toy-yellow"></i> SYNC / REFRESH DATA
+      </button>
+      <button onclick="closeMobileMoreMenu()" class="w-full py-3 bg-sky-100 text-toy-blueDeep rounded-full text-xs font-bold uppercase mt-2">
+        CLOSE MENU
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: SUBMIT PAYMENT SLIP -->
+  <div id="submit-payment-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3 font-cute">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+          <span>📤</span> แจ้งโอนเงินเข้ากองกลาง
+        </h3>
+        <button onclick="closeModal('submit-payment-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-slate-600">
+        <div>
+          <label class="block font-cute text-[11px] font-bold text-slate-500 mb-1">จำนวนเงินที่โอน (บาท)</label>
+          <input type="number" id="pay-amount-input" value="3500" class="w-full px-3.5 py-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 font-cute font-bold text-sm focus:outline-none focus:border-toy-blue">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-cute text-[11px] font-bold text-slate-500 mb-1">วันที่โอน</label>
+            <input type="date" id="pay-date-input" class="w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs">
+          </div>
+          <div>
+            <label class="block font-cute text-[11px] font-bold text-slate-500 mb-1">เวลาที่โอน</label>
+            <input type="time" id="pay-time-input" class="w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-cute text-[11px] font-bold text-slate-500 mb-1">ช่องทางโอน</label>
+          <select id="pay-method-input" class="w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs">
+            <option value="PromptPay">PromptPay (พร้อมเพย์)</option>
+            <option value="Bank Transfer">โอนผ่านบัญชีธนาคาร</option>
+            <option value="Cash">เงินสด</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-cute text-[11px] font-bold text-slate-500 mb-1">แนบรูปสลิปหลักฐานการโอน</label>
+          <div class="border-2 border-dashed border-sky-200 rounded-2xl p-4 text-center hover:bg-sky-50/50 cursor-pointer relative" onclick="document.getElementById('slip-file-input').click()">
+            <input type="file" id="slip-file-input" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="handleSlipFileSelect(event)">
+            <div id="slip-upload-placeholder" class="space-y-1">
+              <i data-lucide="image" class="w-6 h-6 text-sky-400 mx-auto"></i>
+              <p class="text-xs text-slate-600 font-medium">คลิกเพื่ออัปโหลดไฟล์สลิป (JPG, PNG, WEBP)</p>
+              <p class="text-[10px] text-slate-400 font-cute">MAX 10MB</p>
+            </div>
+            <div id="slip-preview-box" class="hidden flex flex-col items-center">
+              <img id="slip-preview-img" src="" class="max-h-40 rounded-xl border border-sky-100 object-contain shadow-xs mb-2">
+              <span class="text-xs text-toy-blue font-cute font-bold hover:underline">CHANGE SLIP</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-cute text-[11px] font-bold text-slate-500 mb-1">หมายเหตุเพิ่มเติม</label>
+          <input type="text" id="pay-note-input" class="w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs" placeholder="เช่น โอนค่าทริปงวดแรกแล้วครับ">
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2 font-cute">
+        <button onclick="closeModal('submit-payment-modal')" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-full text-xs transition">
+          CANCEL
+        </button>
+        <button id="btn-submit-slip" onclick="submitPaymentSlip()" class="flex-1 py-2.5 bg-gradient-to-r from-toy-blue to-sky-400 text-white font-bold rounded-full text-xs transition shadow-toy-btn">
+          SUBMIT PROOF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: VERIFY SLIP INSPECTION -->
+  <div id="verify-slip-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3 font-cute">
+        <div>
+          <h3 class="font-bold text-sm text-slate-800">🔍 ตรวจสอบสลิปการโอนเงิน</h3>
+          <span id="inspect-member-name" class="text-xs text-slate-500">จาก Beam</span>
+        </div>
+        <button onclick="closeModal('verify-slip-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="bg-sky-50/50 p-2 rounded-2xl flex justify-center border-2 border-white">
+          <img id="inspect-slip-img" src="" class="max-h-60 rounded-xl object-contain shadow-xs">
+        </div>
+
+        <div class="bg-sky-50/80 p-3.5 rounded-2xl border-2 border-white space-y-1.5 font-cute">
+          <div class="flex justify-between">
+            <span class="text-slate-500">AMOUNT:</span>
+            <span id="inspect-slip-amount" class="font-bold text-emerald-600 text-sm">฿3,500</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">TIMESTAMP:</span>
+            <span id="inspect-slip-time" class="text-slate-700">PromptPay • 20 Sep 15:42</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">NOTE:</span>
+            <span id="inspect-slip-note" class="text-slate-700 font-sans">ค่าทริปครบครับ</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2 border-t-2 border-sky-50 font-cute">
+        <button onclick="openRejectSlipDialog()" class="flex-1 py-2.5 bg-rose-100 text-rose-700 hover:bg-rose-200 font-bold rounded-full text-xs transition">
+          REJECT [ปฏิเสธ]
+        </button>
+        <button onclick="confirmVerifySlip()" class="flex-1 py-2.5 bg-gradient-to-r from-toy-mint to-emerald-400 text-white font-bold rounded-full text-xs transition shadow-toy-btn">
+          VERIFY [อนุมัติ]
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REJECT SLIP REASON -->
+  <div id="reject-reason-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-rose-100 max-w-sm w-full p-6 shadow-2xl space-y-4 my-8 font-cute">
+      <h3 class="font-bold text-sm text-rose-600 flex items-center gap-2">
+        <i data-lucide="alert-circle" class="w-4 h-4"></i> ระบุเหตุผลการปฏิเสธสลิป
+      </h3>
+      <div class="space-y-2 text-xs text-slate-600 font-sans">
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl hover:bg-sky-50">
+          <input type="radio" name="reject-reason" value="ยอดเงินในสลิปไม่ตรงกับที่แจ้ง" checked> ยอดเงินในสลิปไม่ตรง
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl hover:bg-sky-50">
+          <input type="radio" name="reject-reason" value="รูปภาพหลักฐานไม่ชัดเจน"> รูปภาพหลักฐานไม่ชัดเจน
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl hover:bg-sky-50">
+          <input type="radio" name="reject-reason" value="สลิปซ้ำกับรายการอื่น"> สลิปซ้ำกับรายการอื่น
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl hover:bg-sky-50">
+          <input type="radio" name="reject-reason" value="ไม่พบยอดเงินเข้าบัญชี"> ไม่พบยอดเงินเข้าบัญชี
+        </label>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeModal('reject-reason-modal')" class="flex-1 py-2 bg-slate-100 text-slate-600 font-bold rounded-full text-xs">
+          CANCEL
+        </button>
+        <button onclick="submitRejectSlip()" class="flex-1 py-2 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-full text-xs">
+          CONFIRM REJECT
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD STICKY NOTE -->
+  <div id="add-note-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8 font-cute">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+          <span>📌</span> แปะไอเดียลงกระดาน
+        </h3>
+        <button onclick="closeModal('add-note-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-slate-600">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">หมวดหมู่</label>
+          <select id="note-category-input" class="w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs">
+            <option value="Food">🍜 ร้านอาหาร / ของกิน</option>
+            <option value="Activity">🎢 กิจกรรมที่อยากทำ</option>
+            <option value="Place">🏝️ สถานที่ท่องเที่ยว</option>
+            <option value="Important">⚠️ ข้อควรระวัง / สำคัญ</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">ข้อความไอเดีย</label>
+          <textarea id="note-content-input" rows="3" class="w-full px-3.5 py-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-toy-blue text-sm font-sans" placeholder="พิมพ์ไอเดียของคุณ เช่น อยากไปกินปูเป็นริมหาด..."></textarea>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">เลือกสี Post-it</label>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="note-color" value="yellow" checked> <span class="w-6 h-6 rounded-full bg-amber-200 inline-block border-2 border-white shadow-xs"></span>
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="note-color" value="blue"> <span class="w-6 h-6 rounded-full bg-sky-200 inline-block border-2 border-white shadow-xs"></span>
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="note-color" value="pink"> <span class="w-6 h-6 rounded-full bg-pink-200 inline-block border-2 border-white shadow-xs"></span>
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="note-color" value="green"> <span class="w-6 h-6 rounded-full bg-emerald-200 inline-block border-2 border-white shadow-xs"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeModal('add-note-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-full text-xs">
+          CANCEL
+        </button>
+        <button onclick="saveNote()" class="flex-1 py-2.5 bg-gradient-to-r from-toy-blue to-sky-400 text-white font-bold rounded-full text-xs shadow-toy-btn">
+          POST NOTE 📌
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SHARE NOTE TO CHAT PICKER -->
+  <div id="share-note-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8 font-cute">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3">
+        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+          <span>📌</span> เลือก Note เพื่อแชร์เข้าห้องแชท
+        </h3>
+        <button onclick="closeModal('share-note-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="share-note-picker-list" class="space-y-2 max-h-64 overflow-y-auto pr-1 text-xs">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PROFILE & SIGNATURE PLEDGE -->
+  <div id="join-trip-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8 font-cute">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3">
+        <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+          <span>🧸</span> AGENT PLEDGE & PROFILE
+        </h3>
+        <button onclick="closeModal('join-trip-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-slate-600">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">ชื่อเล่นของคุณ (CALLSIGN)</label>
+          <input type="text" id="join-name-input" class="w-full px-3.5 py-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 font-bold focus:outline-none focus:border-toy-blue" placeholder="เช่น Nut, Boss, Beam">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">เลือก AVATAR ประจำตัว</label>
+          <div class="grid grid-cols-6 gap-2 text-2xl py-1">
+            <button type="button" onclick="selectAvatar('😎')" class="avatar-opt p-2 rounded-2xl border-2 border-sky-100 bg-white hover:border-toy-blue">😎</button>
+            <button type="button" onclick="selectAvatar('🐱')" class="avatar-opt p-2 rounded-2xl border-2 border-sky-100 bg-white hover:border-toy-blue">🐱</button>
+            <button type="button" onclick="selectAvatar('🐸')" class="avatar-opt p-2 rounded-2xl border-2 border-sky-100 bg-white hover:border-toy-blue">🐸</button>
+            <button type="button" onclick="selectAvatar('🐶')" class="avatar-opt p-2 rounded-2xl border-2 border-sky-100 bg-white hover:border-toy-blue">🐶</button>
+            <button type="button" onclick="selectAvatar('👻')" class="avatar-opt p-2 rounded-2xl border-2 border-sky-100 bg-white hover:border-toy-blue">👻</button>
+            <button type="button" onclick="selectAvatar('🦄')" class="avatar-opt p-2 rounded-2xl border-2 border-sky-100 bg-white hover:border-toy-blue">🦄</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">สถานะความพร้อม</label>
+          <div class="grid grid-cols-3 gap-2 text-[11px]">
+            <label class="flex items-center justify-center p-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 cursor-pointer hover:border-emerald-400">
+              <input type="radio" name="attendance" value="going" checked class="mr-1.5 text-emerald-500"> GOING ✅
+            </label>
+            <label class="flex items-center justify-center p-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 cursor-pointer hover:border-amber-400">
+              <input type="radio" name="attendance" value="maybe" class="mr-1.5 text-amber-500"> MAYBE ❓
+            </label>
+            <label class="flex items-center justify-center p-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 cursor-pointer hover:border-rose-400">
+              <input type="radio" name="attendance" value="not_going" class="mr-1.5 text-rose-500"> NO ❌
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-[11px] font-bold text-slate-500">วาดลายเซ็นสัญญาใจ ✍️</label>
+            <button type="button" onclick="clearSignatureCanvas()" class="text-[11px] text-rose-500 hover:underline">
+              CLEAR
+            </button>
+          </div>
+          <div class="border-2 border-dashed border-sky-200 rounded-2xl bg-white overflow-hidden relative">
+            <canvas id="signature-pad" width="380" height="120" class="signature-canvas w-full h-[120px]"></canvas>
+            <div id="sig-hint" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs">
+              DRAW DIGITAL SIGNATURE HERE
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeModal('join-trip-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-full text-xs">
+          CANCEL
+        </button>
+        <button onclick="saveUserProfile()" class="flex-1 py-2.5 bg-gradient-to-r from-toy-blue to-sky-400 text-white font-bold rounded-full text-xs shadow-toy-btn">
+          SAVE PLEDGE
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE TRIP -->
+  <div id="create-trip-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8 font-cute">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3">
+        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+          <span>🏝️</span> CREATE TRIP ROOM
+        </h3>
+        <button onclick="closeModal('create-trip-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-slate-600">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">ชื่อทริป (TRIP NAME)</label>
+          <input type="text" id="new-trip-name" class="w-full px-3.5 py-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 font-bold focus:outline-none focus:border-toy-blue" placeholder="เช่น ภูเก็ตดำน้ำ 2026">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">จุดหมายปลายทาง</label>
+          <input type="text" id="new-trip-dest" class="w-full px-3.5 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 focus:outline-none focus:border-toy-blue" placeholder="เช่น ภูเก็ต - เกาะพีพี">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">งบประมาณต่อคน (บาท)</label>
+          <input type="number" id="new-trip-budget" class="w-full px-3.5 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 font-bold focus:outline-none focus:border-toy-blue" placeholder="3500">
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeModal('create-trip-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-full text-xs">
+          CANCEL
+        </button>
+        <button onclick="createNewTrip()" class="flex-1 py-2.5 bg-gradient-to-r from-toy-blue to-sky-400 text-white font-bold rounded-full text-xs shadow-toy-btn">
+          INITIALIZE ROOM
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD EXPENSE -->
+  <div id="add-expense-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8 font-cute">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3">
+        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+          <span>🧾</span> RECORD SQUAD EXPENSE
+        </h3>
+        <button onclick="closeModal('add-expense-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-slate-600">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">ชื่อรายการ</label>
+          <input type="text" id="expense-title-input" class="w-full px-3.5 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 focus:outline-none focus:border-toy-blue font-sans" placeholder="เช่น ค่าอาหารลุงไสว ซีฟู้ด">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">จำนวนเงิน (บาท)</label>
+          <input type="number" id="expense-amount-input" class="w-full px-3.5 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 font-bold focus:outline-none focus:border-toy-blue" placeholder="1850">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">หมวดหมู่</label>
+            <select id="expense-category-input" class="w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs">
+              <option value="Food">🍜 อาหาร & เครื่องดื่ม</option>
+              <option value="Accommodation">🏨 ที่พัก</option>
+              <option value="Transportation">⛽ เดินทาง / น้ำมัน</option>
+              <option value="Activity">🎢 กิจกรรม & ตั๋ว</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">ผู้จ่ายเงิน</label>
+            <select id="expense-payer-input" class="w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs">
+              <option value="Nut">😎 Nut</option>
+              <option value="Beam">🐱 Beam</option>
+              <option value="Boss">🐸 Boss</option>
+              <option value="Game">🐶 Game</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeModal('add-expense-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-full text-xs">
+          CANCEL
+        </button>
+        <button onclick="saveExpense()" class="flex-1 py-2.5 bg-gradient-to-r from-toy-pink to-rose-400 text-white font-bold rounded-full text-xs shadow-toy-btn-pink">
+          SAVE EXPENSE
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE POLL -->
+  <div id="create-poll-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8 font-cute">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3">
+        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+          <span>🗳️</span> สร้างหัวข้อโหวต
+        </h3>
+        <button onclick="closeModal('create-poll-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-slate-600">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">คำถามโหวต</label>
+          <input type="text" id="poll-question-input" class="w-full px-3.5 py-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 font-bold focus:outline-none focus:border-toy-lilac font-sans" placeholder="เช่น คืนแรกกินร้านอะไรดี?">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">ตัวเลือก</label>
+          <div id="poll-options-inputs" class="space-y-2 font-sans">
+            <input type="text" class="poll-option-field w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs" placeholder="ตัวเลือก 1">
+            <input type="text" class="poll-option-field w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs" placeholder="ตัวเลือก 2">
+          </div>
+          <button type="button" onclick="addPollOptionInput()" class="mt-2 text-xs text-toy-lilac hover:underline font-bold">
+            + ADD OPTION
+          </button>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeModal('create-poll-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-full text-xs">
+          CANCEL
+        </button>
+        <button onclick="savePoll()" class="flex-1 py-2.5 bg-gradient-to-r from-toy-lilac to-purple-400 text-white font-bold rounded-full text-xs shadow-toy-btn">
+          LAUNCH POLL
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INVITE FRIENDS -->
+  <div id="invite-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-cute">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+      <div class="w-14 h-14 rounded-3xl bg-sky-100 text-toy-blueDeep mx-auto flex items-center justify-center text-2xl shadow-toy-sm animate-toy-bounce">
+        🎈
+      </div>
+      <div>
+        <h3 class="font-bold text-lg text-slate-900">INVITE PLAY SQUAD</h3>
+        <p class="text-xs text-slate-500 mt-1 font-sans">แชร์ลิงก์นี้ใน LINE กลุ่ม เพื่อนกดเข้าห้องได้ทันทีโดยไม่ต้องโหลดแอป</p>
+      </div>
+      <div class="bg-sky-50/80 p-3.5 rounded-2xl border-2 border-sky-100 flex items-center justify-between">
+        <span class="text-xs text-toy-blueDeep font-bold truncate mr-2" id="invite-link-text">https://tripmate.app/join/PTY-2026</span>
+        <button onclick="copyTripLink()" class="px-3.5 py-1.5 bg-toy-blue hover:brightness-105 text-white rounded-xl text-xs font-bold transition shadow-toy-btn active:scale-95">
+          COPY
+        </button>
+      </div>
+      <button onclick="closeModal('invite-modal')" class="w-full py-2.5 bg-slate-100 text-slate-600 rounded-full text-xs font-bold">
+        CLOSE
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: NOTE COMMENTS -->
+  <div id="note-comments-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto font-sans">
+    <div class="bg-white rounded-[32px] border-4 border-white max-w-md w-full p-6 shadow-2xl space-y-4 my-8 font-cute">
+      <div class="flex items-center justify-between border-b-2 border-sky-50 pb-3">
+        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+          <span>💬</span> ความคิดเห็นในโน้ต
+        </h3>
+        <button onclick="closeModal('note-comments-modal')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="comment-original-note" class="p-3.5 rounded-2xl bg-sky-50/60 border-2 border-white text-xs text-slate-700">
+        <!-- Injected via JS -->
+      </div>
+
+      <div id="note-comments-list" class="space-y-2 max-h-52 overflow-y-auto text-xs pr-1 font-sans">
+        <!-- Injected via JS -->
+      </div>
+
+      <div class="flex gap-2 pt-2 border-t-2 border-sky-50">
+        <input type="text" id="new-comment-input" class="flex-1 px-3.5 py-2.5 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs focus:outline-none focus:border-toy-blue font-sans" placeholder="พิมพ์ความเห็น...">
+        <button onclick="submitNoteComment()" class="px-4 py-2 bg-gradient-to-r from-toy-blue to-sky-400 text-white font-bold rounded-2xl text-xs transition shadow-toy-btn">
+          SEND
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cute Notification Toast -->
+  <div id="toast" class="fixed top-5 right-5 z-50 bg-white/95 backdrop-blur-md text-slate-800 px-5 py-3 rounded-full shadow-2xl flex items-center gap-2.5 text-xs font-cute font-bold transform transition-all duration-300 translate-y-[-100px] opacity-0 pointer-events-none border-2 border-sky-100">
+    <span class="w-3 h-3 rounded-full bg-toy-pink animate-toy-bounce"></span>
+    <span id="toast-message">NOTIFICATION</span>
+  </div>
+
+  <!-- ==================== SCRIPT LOGIC ==================== -->
+  <script>
+    const state = {
+      currentView: 'dashboard',
+      activeMoneyTab: 'contributions',
+      currentUser: {
+        id: 'u-1',
+        name: 'Nut',
+        avatar: '😎',
+        attendance: 'going',
+        role: 'owner',
+        signature: null
+      },
+      trip: {
+        id: 'trip-pattaya-2026',
+        name: 'พัทยา 3 วัน 2 คืน 2026',
+        destination: 'กรุงเทพฯ ➔ พัทยา (เกาะล้าน)',
+        startDate: '2026-11-14',
+        endDate: '2026-11-16',
+        budgetPerPerson: 3500,
+        expectedMembers: 8,
+        totalBudget: 28000
+      },
+      members: [
+        { id: 'u-1', name: 'Nut', avatar: '😎', attendance: 'going', paid: 3500, role: 'owner', signature: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><path d="M10 25 Q 30 5, 50 25 T 90 20" fill="none" stroke="%2338bdf8" stroke-width="3"/></svg>' },
+        { id: 'u-2', name: 'Beam', avatar: '🐱', attendance: 'going', paid: 3500, role: 'member', signature: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><path d="M15 30 Q 40 10, 80 30" fill="none" stroke="%23f472b6" stroke-width="3"/></svg>' },
+        { id: 'u-3', name: 'Boss', avatar: '🐸', attendance: 'going', paid: 3500, role: 'member', signature: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><path d="M10 15 L 45 35 L 85 10" fill="none" stroke="%23fde047" stroke-width="3"/></svg>' },
+        { id: 'u-4', name: 'Game', avatar: '🐶', attendance: 'going', paid: 3500, role: 'member', signature: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><path d="M10 20 C 40 40, 60 5, 90 25" fill="none" stroke="%23c084fc" stroke-width="3"/></svg>' },
+        { id: 'u-5', name: 'First', avatar: '👻', attendance: 'going', paid: 3500, role: 'member', signature: null },
+        { id: 'u-6', name: 'Bank', avatar: '🦄', attendance: 'going', paid: 3500, role: 'member', signature: null },
+        { id: 'u-7', name: 'Mark', avatar: '🦊', attendance: 'maybe', paid: 0, role: 'member', signature: null },
+        { id: 'u-8', name: 'Ton', avatar: '🐼', attendance: 'not_going', paid: 0, role: 'guest', signature: null }
+      ],
+      paymentSubmissions: [
+        {
+          id: 'pay-1',
+          memberId: 'u-7',
+          memberName: 'Mark',
+          avatar: '🦊',
+          amount: 3500,
+          paymentMethod: 'PromptPay',
+          transferredAt: '2026-09-22 14:30',
+          proofUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400&q=80',
+          note: 'โอนพร้อมเพย์เรียบร้อยครับ',
+          status: 'pending',
+          submittedAt: '2026-09-22 14:32'
+        },
+        {
+          id: 'pay-2',
+          memberId: 'u-2',
+          memberName: 'Beam',
+          avatar: '🐱',
+          amount: 3500,
+          paymentMethod: 'PromptPay',
+          transferredAt: '2026-09-20 10:15',
+          proofUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400&q=80',
+          note: 'เรียบร้อยค่ะ',
+          status: 'verified',
+          submittedAt: '2026-09-20 10:20',
+          verifiedAt: '2026-09-20 10:30',
+          verifiedBy: 'Nut'
+        }
+      ],
+      expenses: [
+        { id: 'exp-1', title: '🏨 ค่ามัดจำพูลวิลล่า พัทยาใต้', amount: 6000, category: 'Accommodation', payer: 'Nut', source: 'trip_fund', date: '2026-11-01' },
+        { id: 'exp-2', title: '🍜 ร้านอาหารลุงไสว ซีฟู้ด', amount: 1850, category: 'Food', payer: 'Nut', source: 'trip_fund', date: '2026-11-02' },
+        { id: 'exp-3', title: '⛽ ค่าน้ำมันรถตู้คันที่ 1', amount: 1200, category: 'Transportation', payer: 'Boss', source: 'trip_fund', date: '2026-11-02' },
+        { id: 'exp-4', title: '🍻 เครื่องดื่มและของปาร์ตี้', amount: 3400, category: 'Food', payer: 'Beam', source: 'trip_fund', date: '2026-11-03' }
+      ],
+      // Sticky Notes with stored (x, y, rotation) for free canvas dragging
+      notes: [
+        {
+          id: 'n-1',
+          author: 'Beam',
+          avatar: '🐱',
+          category: 'Food',
+          content: 'อยากแวะร้านซีฟู้ดปูเป็นริมหาดก่อนกลับ มีใครชอบบ้าง?',
+          color: 'yellow',
+          likes: 5,
+          hasLiked: false,
+          x: 40,
+          y: 40,
+          rotation: -2,
+          comments: [
+            { id: 'c-1', author: 'Nut', text: 'ร้านนี้สดมาก เห็นด้วยเลย', source: 'board' },
+            { id: 'c-2', author: 'Boss', text: 'ขอเมนูหอยนางรมสดด้วยนะ!', source: 'chat' }
+          ]
+        },
+        {
+          id: 'n-2',
+          author: 'Boss',
+          avatar: '🐸',
+          category: 'Activity',
+          content: 'เตรียมเหมาเรือ Banana Boat เกาะล้านแล้ว ขอลุยทุกคนนะ พร้อมตกน้ำกันยัง!',
+          color: 'blue',
+          likes: 6,
+          hasLiked: true,
+          x: 320,
+          y: 80,
+          rotation: 3,
+          comments: [
+            { id: 'c-3', author: 'Game', text: 'พร้อมตกน้ำแล้ว 555', source: 'chat' }
+          ]
+        },
+        {
+          id: 'n-3',
+          author: 'Nut',
+          avatar: '😎',
+          category: 'Important',
+          content: 'อย่าลืมบัตรประชาชนไว้ขึ้นเรือข้ามเกาะ และยาประจำตัวนะเพื่อนๆ สำคัญมาก',
+          color: 'pink',
+          likes: 4,
+          hasLiked: false,
+          x: 100,
+          y: 310,
+          rotation: -1.5,
+          comments: []
+        },
+        {
+          id: 'n-4',
+          author: 'Game',
+          avatar: '🐶',
+          category: 'Place',
+          content: 'ขากลับแวะ Cafe สวยๆ ถ่ายรูปเก๋ๆ กันสักร้านไหมครับ?',
+          color: 'green',
+          likes: 3,
+          hasLiked: false,
+          x: 380,
+          y: 340,
+          rotation: 2.5,
+          comments: []
+        }
+      ],
+      messages: [
+        {
+          id: 'm-1',
+          sender: 'Beam',
+          avatar: '🐱',
+          type: 'text',
+          content: 'ทุกคนน สรุปออกเดินทางกี่โมงดีคะ ปั๊มบางจากบางนา?',
+          time: '10:20'
+        },
+        {
+          id: 'm-2',
+          sender: 'Boss',
+          avatar: '🐸',
+          type: 'text',
+          content: 'ผมนัดรถตู้ไว้ 08:00 น. ล้อหมุน 08:30 น. ใครสายจ่ายค่าน้ำมัน!',
+          time: '10:21'
+        },
+        {
+          id: 'm-3',
+          sender: 'Beam',
+          avatar: '🐱',
+          type: 'note_reference',
+          referencedNoteId: 'n-1',
+          content: 'แชร์โพสต์อิทไอเดียร้านอาหารมาให้โหวตกัน',
+          time: '10:25'
+        },
+        {
+          id: 'm-4',
+          sender: 'Boss',
+          avatar: '🐸',
+          type: 'text',
+          replyToNoteId: 'n-1',
+          content: 'ขอเมนูหอยนางรมสดด้วยนะ!',
+          time: '10:26'
+        },
+        {
+          id: 'm-5',
+          type: 'system',
+          content: 'Mark ได้ส่งสลิปแจ้งโอนเงิน ฿3,500 รอการตรวจสอบ',
+          time: '14:32'
+        }
+      ],
+      polls: [
+        {
+          id: 'p-1',
+          question: 'คืนแรกกินอาหารอะไรกันดี?',
+          closesAt: '13 พ.ย. 20:00 น.',
+          options: [
+            { id: 'opt-1', label: 'ร้านอาหารทะเลริมหาด', votes: 5 },
+            { id: 'opt-2', label: 'ซื้อกุ้งหอยมาปิ้งย่างหมูกระทะพูลวิลล่า', votes: 2 },
+            { id: 'opt-3', label: 'ร้านอาหารญี่ปุ่นในเมือง', votes: 1 }
+          ],
+          userVotedOption: 'opt-1'
+        }
+      ],
+      activities: [
+        'Mark ได้ส่งสลิปแจ้งโอนเงิน ฿3,500',
+        'Nut อนุมัติการโอนเงินของ Beam (฿3,500)',
+        'Beam แชร์ Note "อยากแวะร้านซีฟู้ดปูเป็น" เข้าแชท',
+        'Boss ตอบกลับ Note จากในแชทกลุ่ม',
+        'Nut บันทึกค่ามัดจำพูลวิลล่า ฿6,000'
+      ],
+      chatFilter: 'all',
+      replyingTo: null,
+      inspectingPaymentId: null,
+      tempSlipDataUrl: null,
+      highestZIndex: 100
+    };
+
+    // Digital signature canvas variables
+    let canvas, ctx;
+    let isDrawing = false;
+    let hasDrawn = false;
+
+    function initSignatureCanvas() {
+      canvas = document.getElementById('signature-pad');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      canvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        hasDrawn = true;
+        document.getElementById('sig-hint').style.display = 'none';
+        const rect = canvas.getBoundingClientRect();
+        ctx.beginPath();
+        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+      });
+      canvas.addEventListener('mousemove', (e) => {
+        if (!isDrawing) return;
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        ctx.stroke();
+      });
+      canvas.addEventListener('mouseup', () => isDrawing = false);
+      canvas.addEventListener('mouseleave', () => isDrawing = false);
+
+      // Mobile Touch
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isDrawing = true;
+        hasDrawn = true;
+        document.getElementById('sig-hint').style.display = 'none';
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        ctx.beginPath();
+        ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+      });
+      canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!isDrawing) return;
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        ctx.stroke();
+      });
+      canvas.addEventListener('touchend', () => isDrawing = false);
+    }
+
+    function clearSignatureCanvas() {
+      if (!ctx || !canvas) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hasDrawn = false;
+      document.getElementById('sig-hint').style.display = 'flex';
+    }
+
+    function selectAvatar(emoji) {
+      state.currentUser.avatar = emoji;
+      document.querySelectorAll('.avatar-opt').forEach(btn => {
+        if (btn.innerText.trim() === emoji) {
+          btn.classList.add('border-toy-blue', 'bg-sky-50');
+        } else {
+          btn.classList.remove('border-toy-blue', 'bg-sky-50');
+        }
+      });
+    }
+
+    /* Navigation */
+    function navigate(viewName) {
+      state.currentView = viewName;
+      const views = ['landing', 'dashboard', 'money', 'chat', 'board', 'votes', 'plan', 'members'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (el) el.classList.add('hidden');
+      });
+
+      const activeView = document.getElementById(`view-${viewName}`);
+      if (activeView) activeView.classList.remove('hidden');
+
+      // Desktop Sidebar Active
+      document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.classList.remove('bg-toy-blue', 'text-white', 'shadow-toy-btn');
+        item.classList.add('text-slate-600');
+      });
+      const currentNav = document.getElementById(`nav-${viewName}`);
+      if (currentNav) {
+        currentNav.classList.add('bg-toy-blue', 'text-white', 'shadow-toy-btn');
+        currentNav.classList.remove('text-slate-600');
+      }
+
+      // Top Capsule Active
+      document.querySelectorAll('[id^="top-nav-"]').forEach(btn => {
+        btn.classList.remove('bg-toy-blue', 'text-white', 'shadow-toy-btn');
+        btn.classList.add('text-toy-textMuted');
+      });
+      const currentTopNav = document.getElementById(`top-nav-${viewName}`);
+      if (currentTopNav) {
+        currentTopNav.classList.add('bg-toy-blue', 'text-white', 'shadow-toy-btn');
+        currentTopNav.classList.remove('text-toy-textMuted');
+      }
+
+      // Mobile Nav Active
+      document.querySelectorAll('[id^="m-nav-"]').forEach(btn => {
+        btn.classList.remove('text-toy-blue');
+        btn.classList.add('text-slate-400');
+      });
+      const activeMNav = document.getElementById(`m-nav-${viewName}`);
+      if (activeMNav) {
+        activeMNav.classList.add('text-toy-blue');
+        activeMNav.classList.remove('text-slate-400');
+      }
+
+      if (viewName === 'chat') {
+        const badge = document.getElementById('sidebar-chat-badge');
+        const mBadge = document.getElementById('m-chat-badge');
+        if (badge) badge.classList.add('hidden');
+        if (mBadge) mBadge.classList.add('hidden');
+        scrollChatToBottom();
+      }
+
+      renderAll();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function refreshData(showFeedback = true) {
+      const icon = document.getElementById('header-refresh-icon');
+      if (icon) {
+        icon.classList.add('animate-spin');
+        setTimeout(() => icon.classList.remove('animate-spin'), 600);
+      }
+      renderAll();
+      if (showFeedback) {
+        showToast('DATA REFRESHED // SYNCED 🧸✨');
+      }
+    }
+
+    function calculateFinance() {
+      const totalBudget = state.trip.expectedMembers * state.trip.budgetPerPerson;
+      const totalCollected = state.members.reduce((sum, m) => sum + (m.paid || 0), 0);
+      const pendingSubmissions = state.paymentSubmissions.filter(p => p.status === 'pending');
+      const totalPending = pendingSubmissions.reduce((sum, p) => sum + p.amount, 0);
+      const totalSpent = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+      const remaining = totalCollected - totalSpent;
+      const progress = totalBudget > 0 ? Math.round((totalCollected / totalBudget) * 100) : 0;
+
+      return {
+        totalBudget,
+        totalCollected,
+        totalPending,
+        pendingCount: pendingSubmissions.length,
+        totalSpent,
+        remaining,
+        progress
+      };
+    }
+
+    function renderAll() {
+      renderDashboard();
+      renderMoney();
+      renderChat();
+      renderBoard();
+      renderPolls();
+      renderMembers();
+      updateBadges();
+      lucide.createIcons();
+    }
+
+    function updateBadges() {
+      const finance = calculateFinance();
+      const sidebarMoneyBadge = document.getElementById('sidebar-money-badge');
+      const mMoneyBadge = document.getElementById('m-money-badge');
+      const pendingProofBadge = document.getElementById('pending-proof-badge');
+
+      if (finance.pendingCount > 0) {
+        if (sidebarMoneyBadge) {
+          sidebarMoneyBadge.classList.remove('hidden');
+          sidebarMoneyBadge.innerText = finance.pendingCount;
+        }
+        if (mMoneyBadge) mMoneyBadge.classList.remove('hidden');
+        if (pendingProofBadge) {
+          pendingProofBadge.innerText = finance.pendingCount;
+          pendingProofBadge.classList.remove('hidden');
+        }
+      } else {
+        if (sidebarMoneyBadge) sidebarMoneyBadge.classList.add('hidden');
+        if (mMoneyBadge) mMoneyBadge.classList.add('hidden');
+        if (pendingProofBadge) pendingProofBadge.classList.add('hidden');
+      }
+    }
+
+    function renderDashboard() {
+      const finance = calculateFinance();
+      document.getElementById('dash-collected').innerText = finance.totalCollected.toLocaleString();
+      document.getElementById('dash-pending').innerText = `฿${finance.totalPending.toLocaleString()}`;
+      document.getElementById('dash-spent').innerText = `฿${finance.totalSpent.toLocaleString()}`;
+      document.getElementById('dash-remaining').innerText = `฿${finance.remaining.toLocaleString()}`;
+      document.getElementById('dash-progress-percent').innerText = `${finance.progress}%`;
+      document.getElementById('dash-budget-bar').style.width = `${Math.min(finance.progress, 100)}%`;
+
+      // Recent Chat
+      const recentChatBox = document.getElementById('dash-recent-chat');
+      const textMessages = state.messages.slice(-3);
+      recentChatBox.innerHTML = textMessages.map(msg => {
+        if (msg.type === 'system') {
+          return `
+            <div class="p-2.5 rounded-2xl bg-sky-50 border border-sky-100 text-[11px] text-slate-500 font-cute flex items-center gap-1.5">
+              <span>🔔</span> ${msg.content}
+            </div>
+          `;
+        }
+        return `
+          <div class="flex items-start gap-2.5 p-2 rounded-2xl hover:bg-sky-50 transition font-sans">
+            <span class="text-base">${msg.avatar || '👤'}</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex justify-between items-baseline font-cute">
+                <span class="font-bold text-xs text-slate-800">${msg.sender}</span>
+                <span class="text-[9px] text-slate-400">${msg.time}</span>
+              </div>
+              <p class="text-xs text-slate-600 truncate">${msg.content}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Featured Poll
+      const featuredPoll = state.polls[0];
+      const pollBox = document.getElementById('dash-featured-poll');
+      if (featuredPoll) {
+        const totalVotes = featuredPoll.options.reduce((sum, o) => sum + o.votes, 0);
+        pollBox.innerHTML = `
+          <div class="flex justify-between items-start mb-2 font-cute">
+            <h4 class="font-bold text-slate-800 text-xs">${featuredPoll.question}</h4>
+            <span class="text-[10px] text-toy-pink bg-pink-100 px-2 py-0.5 rounded-full font-bold">${totalVotes} VOTES</span>
+          </div>
+          <div class="space-y-1.5 mt-2 font-cute">
+            ${featuredPoll.options.map(opt => {
+              const pct = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+              return `
+                <div class="text-[11px]">
+                  <div class="flex justify-between text-slate-600 mb-0.5">
+                    <span>${opt.label}</span>
+                    <span class="font-bold text-slate-800">${opt.votes} (${pct}%)</span>
+                  </div>
+                  <div class="w-full bg-white h-2 rounded-full overflow-hidden border border-sky-100">
+                    <div class="bg-toy-pink h-2 rounded-full" style="width: ${pct}%"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <button onclick="navigate('votes')" class="mt-3 text-xs font-cute text-toy-blueDeep font-bold hover:underline block">
+            CAST VOTE ➔
+          </button>
+        `;
+      }
+
+      // Recent notes widget
+      const recentNotesBox = document.getElementById('dash-recent-notes');
+      recentNotesBox.innerHTML = state.notes.slice(0, 3).map(n => `
+        <div class="p-2.5 rounded-2xl border-2 border-white bg-sky-50/70 flex items-start gap-2.5 font-sans shadow-xs">
+          <span class="text-lg">${n.avatar}</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between font-cute">
+              <span class="font-bold text-xs text-slate-800">${n.author}</span>
+              <span class="text-[9px] uppercase px-2 py-0.5 rounded-full bg-white font-bold text-sky-700">${n.category}</span>
+            </div>
+            <p class="text-xs text-slate-600 truncate">${n.content}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    /* ================================================================
+       FREE DRAGGABLE POST-IT BOARD (Interactive Physics)
+       ================================================================ */
+    let isDraggingNote = false;
+    let activeDragEl = null;
+    let dragStartX = 0, dragStartY = 0;
+    let initialNoteX = 0, initialNoteY = 0;
+    let activeNoteId = null;
+
+    function renderBoard(filteredCategory = 'all') {
+      const canvasEl = document.getElementById('corkboard-canvas');
+      if (!canvasEl) return;
+
+      let notesToRender = state.notes;
+      if (filteredCategory !== 'all') {
+        notesToRender = notesToRender.filter(n => n.category === filteredCategory);
+      }
+
+      // Keep background stamps
+      canvasEl.innerHTML = `
+        <div class="absolute top-4 left-6 text-xs font-cute text-slate-300 select-none pointer-events-none font-bold">
+          TRIP CORKBOARD // FREE DRAG & DROP POST-IT 📌
+        </div>
+        <div class="absolute bottom-4 right-6 text-4xl opacity-15 select-none pointer-events-none">
+          🏖️ 🍦 🌴 🎈
+        </div>
+      `;
+
+      if (notesToRender.length === 0) {
+        canvasEl.innerHTML += `
+          <div class="absolute inset-0 flex flex-col items-center justify-center font-cute text-slate-400 pointer-events-none">
+            <span class="text-5xl mb-2">👀</span>
+            <p class="font-bold text-sm">NO POST-IT IN THIS CATEGORY</p>
+            <p class="text-xs">กดปุ่ม "+ แปะ POST-IT ใหม่" ด้านบนเพื่อเริ่มไอเดีย</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Render draggable post-its
+      notesToRender.forEach(n => {
+        let colorClasses = 'bg-[#fef9c3] border-amber-200 text-amber-950'; // yellow
+        if (n.color === 'blue') colorClasses = 'bg-[#e0f2fe] border-sky-200 text-sky-950';
+        else if (n.color === 'pink') colorClasses = 'bg-[#fce7f3] border-pink-200 text-pink-950';
+        else if (n.color === 'green') colorClasses = 'bg-[#dcfce7] border-emerald-200 text-emerald-950';
+
+        const noteEl = document.createElement('div');
+        noteEl.id = `postit-${n.id}`;
+        noteEl.className = `draggable-note w-64 sm:w-72 p-4 rounded-2xl border-2 shadow-postit ${colorClasses}`;
+        noteEl.style.left = `${n.x}px`;
+        noteEl.style.top = `${n.y}px`;
+        noteEl.style.transform = `rotate(${n.rotation || 0}deg)`;
+
+        noteEl.innerHTML = `
+          <!-- Cute Washi Tape at Top -->
+          <div class="washi-tape"></div>
+
+          <!-- Note Header -->
+          <div class="flex items-center justify-between mb-2.5 font-cute select-none">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${n.avatar}</span>
+              <span class="font-bold text-xs">${n.author}</span>
+            </div>
+            <span class="text-[9px] uppercase font-bold px-2 py-0.5 rounded-full bg-white/70 border border-black/5">
+              ${n.category}
+            </span>
+          </div>
+
+          <!-- Note Content -->
+          <p class="text-xs sm:text-sm font-medium leading-relaxed font-sans select-none mb-3 whitespace-pre-wrap">${n.content}</p>
+
+          <!-- Note Footer Actions -->
+          <div class="pt-2 border-t border-black/5 flex items-center justify-between text-xs font-cute select-none">
+            <div class="flex items-center gap-2 font-bold">
+              <button onclick="toggleNoteLike('${n.id}', event)" class="flex items-center gap-1 ${n.hasLiked ? 'text-toy-pink font-extrabold' : 'opacity-70 hover:opacity-100'}">
+                ❤️ <span>${n.likes}</span>
+              </button>
+              <button onclick="openNoteComments('${n.id}', event)" class="flex items-center gap-1 opacity-70 hover:opacity-100">
+                💬 <span>${n.comments.length}</span>
+              </button>
+            </div>
+
+            <button onclick="shareNoteToChat('${n.id}', event)" class="text-[11px] font-bold text-white bg-toy-blue hover:brightness-105 px-3 py-1 rounded-full flex items-center gap-1 transition shadow-xs">
+              <i data-lucide="message-square" class="w-3 h-3"></i> แชท
+            </button>
+          </div>
+        `;
+
+        // Attach Drag Events
+        attachDragEvents(noteEl, n);
+
+        canvasEl.appendChild(noteEl);
+      });
+
+      lucide.createIcons();
+    }
+
+    function attachDragEvents(element, noteObj) {
+      // Mouse down
+      element.addEventListener('mousedown', (e) => {
+        // Ignore clicks on buttons/inputs
+        if (e.target.closest('button') || e.target.closest('input')) return;
+
+        isDraggingNote = true;
+        activeDragEl = element;
+        activeNoteId = noteObj.id;
+
+        // Bring to front
+        state.highestZIndex++;
+        element.style.zIndex = state.highestZIndex;
+        element.classList.add('is-dragging');
+
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        initialNoteX = noteObj.x;
+        initialNoteY = noteObj.y;
+
+        e.preventDefault();
+      });
+
+      // Mobile Touch Start
+      element.addEventListener('touchstart', (e) => {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+
+        isDraggingNote = true;
+        activeDragEl = element;
+        activeNoteId = noteObj.id;
+
+        state.highestZIndex++;
+        element.style.zIndex = state.highestZIndex;
+        element.classList.add('is-dragging');
+
+        const touch = e.touches[0];
+        dragStartX = touch.clientX;
+        dragStartY = touch.clientY;
+        initialNoteX = noteObj.x;
+        initialNoteY = noteObj.y;
+      }, { passive: true });
+    }
+
+    // Global Canvas Move & Up Handlers
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingNote || !activeDragEl) return;
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+
+      const canvasEl = document.getElementById('corkboard-canvas');
+      const bounds = canvasEl.getBoundingClientRect();
+      const elWidth = activeDragEl.offsetWidth;
+      const elHeight = activeDragEl.offsetHeight;
+
+      let newX = initialNoteX + dx;
+      let newY = initialNoteY + dy;
+
+      // Constrain within corkboard boundaries
+      newX = Math.max(10, Math.min(bounds.width - elWidth - 10, newX));
+      newY = Math.max(10, Math.min(bounds.height - elHeight - 10, newY));
+
+      activeDragEl.style.left = `${newX}px`;
+      activeDragEl.style.top = `${newY}px`;
+
+      // Update state data
+      const note = state.notes.find(n => n.id === activeNoteId);
+      if (note) {
+        note.x = newX;
+        note.y = newY;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!isDraggingNote || !activeDragEl) return;
+      activeDragEl.classList.remove('is-dragging');
+      isDraggingNote = false;
+      activeDragEl = null;
+      activeNoteId = null;
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDraggingNote || !activeDragEl) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - dragStartX;
+      const dy = touch.clientY - dragStartY;
+
+      const canvasEl = document.getElementById('corkboard-canvas');
+      const bounds = canvasEl.getBoundingClientRect();
+      const elWidth = activeDragEl.offsetWidth;
+      const elHeight = activeDragEl.offsetHeight;
+
+      let newX = initialNoteX + dx;
+      let newY = initialNoteY + dy;
+
+      newX = Math.max(10, Math.min(bounds.width - elWidth - 10, newX));
+      newY = Math.max(10, Math.min(bounds.height - elHeight - 10, newY));
+
+      activeDragEl.style.left = `${newX}px`;
+      activeDragEl.style.top = `${newY}px`;
+
+      const note = state.notes.find(n => n.id === activeNoteId);
+      if (note) {
+        note.x = newX;
+        note.y = newY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+      if (!isDraggingNote || !activeDragEl) return;
+      activeDragEl.classList.remove('is-dragging');
+      isDraggingNote = false;
+      activeDragEl = null;
+      activeNoteId = null;
+    });
+
+    // Reset notes neatly across the board
+    function resetBoardLayout() {
+      const canvasEl = document.getElementById('corkboard-canvas');
+      const width = canvasEl ? canvasEl.offsetWidth : 800;
+      
+      state.notes.forEach((n, idx) => {
+        const col = idx % (width > 600 ? 3 : 1);
+        const row = Math.floor(idx / (width > 600 ? 3 : 1));
+        n.x = 30 + col * (width > 600 ? 280 : 20);
+        n.y = 30 + row * 220;
+        n.rotation = (idx % 2 === 0 ? 1 : -1) * (2 + (idx % 3));
+      });
+
+      renderBoard();
+      showToast('AUTO-ARRANGED POST-ITS 📌✨');
+    }
+
+    function filterBoardNotes(category) {
+      document.querySelectorAll('.note-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-toy-blue', 'text-white', 'shadow-toy-btn');
+        btn.classList.add('bg-white', 'text-slate-600', 'shadow-xs');
+      });
+      event.target.classList.remove('bg-white', 'text-slate-600', 'shadow-xs');
+      event.target.classList.add('bg-toy-blue', 'text-white', 'shadow-toy-btn');
+      renderBoard(category);
+    }
+
+    function saveNote() {
+      const content = document.getElementById('note-content-input').value.trim();
+      const category = document.getElementById('note-category-input').value;
+      const color = document.querySelector('input[name="note-color"]:checked')?.value || 'yellow';
+
+      if (!content) {
+        showToast('กรุณาพิมพ์ข้อความไอเดีย');
+        return;
+      }
+
+      // Place near center with slight random offset
+      const canvasEl = document.getElementById('corkboard-canvas');
+      const w = canvasEl ? canvasEl.offsetWidth : 600;
+      const h = canvasEl ? canvasEl.offsetHeight : 500;
+      const randX = Math.max(20, Math.min(w - 280, (w / 2 - 140) + (Math.random() * 80 - 40)));
+      const randY = Math.max(20, Math.min(h - 220, (h / 2 - 100) + (Math.random() * 80 - 40)));
+      const randRot = (Math.random() * 6 - 3).toFixed(1);
+
+      state.notes.unshift({
+        id: `note-${Date.now()}`,
+        author: state.currentUser.name,
+        avatar: state.currentUser.avatar,
+        category,
+        content,
+        color,
+        likes: 1,
+        hasLiked: true,
+        x: randX,
+        y: randY,
+        rotation: parseFloat(randRot),
+        comments: []
+      });
+
+      document.getElementById('note-content-input').value = '';
+      closeModal('add-note-modal');
+      showToast('POSTED NEW NOTE! 📌');
+      renderBoard();
+      renderDashboard();
+    }
+
+    function toggleNoteLike(noteId, event) {
+      if (event) event.stopPropagation();
+      const note = state.notes.find(n => n.id === noteId);
+      if (!note) return;
+      note.hasLiked = !note.hasLiked;
+      note.likes += note.hasLiked ? 1 : -1;
+      renderBoard();
+    }
+
+    function openNoteComments(noteId, event) {
+      if (event) event.stopPropagation();
+      const note = state.notes.find(n => n.id === noteId);
+      if (!note) return;
+      state.activeCommentNoteId = noteId;
+
+      document.getElementById('comment-original-note').innerHTML = `
+        <div class="flex items-center gap-2 mb-1 font-cute">
+          <span class="text-base">${note.avatar}</span>
+          <span class="font-bold text-slate-800">${note.author}</span>
+          <span class="text-[9px] uppercase bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold">${note.category}</span>
+        </div>
+        <p class="text-slate-700 font-sans">${note.content}</p>
+      `;
+
+      renderCommentsList(note);
+      openModal('note-comments-modal');
+    }
+
+    function renderCommentsList(note) {
+      const list = document.getElementById('note-comments-list');
+      if (note.comments.length === 0) {
+        list.innerHTML = `<p class="text-slate-400 font-cute text-center py-4">NO COMMENTS YET</p>`;
+        return;
+      }
+      list.innerHTML = note.comments.map(c => `
+        <div class="p-2.5 rounded-2xl bg-sky-50/60 border border-sky-100">
+          <div class="flex items-center justify-between font-cute">
+            <span class="font-bold text-slate-800">${c.author}</span>
+            <span class="text-[8px] uppercase text-slate-400">${c.source === 'chat' ? 'FROM CHAT' : 'FROM BOARD'}</span>
+          </div>
+          <span class="text-slate-600 block mt-0.5 font-sans">${c.text}</span>
+        </div>
+      `).join('');
+    }
+
+    function submitNoteComment() {
+      const input = document.getElementById('new-comment-input');
+      const text = input.value.trim();
+      if (!text || !state.activeCommentNoteId) return;
+
+      const note = state.notes.find(n => n.id === state.activeCommentNoteId);
+      if (note) {
+        note.comments.push({
+          id: `c-${Date.now()}`,
+          author: state.currentUser.name,
+          text,
+          source: 'board'
+        });
+        input.value = '';
+        renderCommentsList(note);
+        renderBoard();
+        showToast('COMMENT ADDED 💬✨');
+      }
+    }
+
+    /* ================================================================
+       MONEY, CHAT, POLLS & UTILS
+       ================================================================ */
+    function renderMoney() {
+      const finance = calculateFinance();
+      // Tab 1: Members
+      const contribList = document.getElementById('member-contribution-list');
+      contribList.innerHTML = state.members.map(m => {
+        const isPaid = m.paid >= state.trip.budgetPerPerson;
+        const pendingPayment = state.paymentSubmissions.find(p => p.memberId === m.id && p.status === 'pending');
+        
+        let statusBadge = '';
+        if (isPaid) {
+          statusBadge = '<span class="text-[11px] font-cute font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full shadow-xs">VERIFIED ✅</span>';
+        } else if (pendingPayment) {
+          statusBadge = '<span class="text-[11px] font-cute font-bold text-amber-800 bg-amber-100 px-3 py-1 rounded-full shadow-xs">WAITING ⏳</span>';
+        } else {
+          statusBadge = '<span class="text-[11px] font-cute text-slate-400 bg-slate-100 px-3 py-1 rounded-full">UNPAID</span>';
+        }
+
+        return `
+          <div class="flex items-center justify-between py-3.5">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">${m.avatar}</span>
+              <div>
+                <span class="font-bold text-slate-800 text-xs sm:text-sm block font-cute">${m.name}</span>
+                <span class="text-[10px] font-cute text-slate-400">TARGET: ฿${state.trip.budgetPerPerson.toLocaleString()}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 font-cute">
+              <div class="text-right">
+                <span class="font-bold text-xs sm:text-sm ${isPaid ? 'text-emerald-600' : 'text-slate-400'} block">
+                  ฿${(m.paid || 0).toLocaleString()}
+                </span>
+                ${statusBadge}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Tab 2: Slips
+      const proofsList = document.getElementById('payment-submissions-list');
+      if (state.paymentSubmissions.length === 0) {
+        proofsList.innerHTML = `<p class="text-slate-400 font-cute text-xs text-center py-6">NO PAYMENT SUBMISSIONS</p>`;
+      } else {
+        proofsList.innerHTML = state.paymentSubmissions.map(p => {
+          let statusBadge = '';
+          if (p.status === 'pending') statusBadge = '<span class="bg-amber-100 text-amber-800 font-cute font-bold text-[10px] px-3 py-1 rounded-full">WAITING VERIFY</span>';
+          else if (p.status === 'verified') statusBadge = '<span class="bg-emerald-100 text-emerald-800 font-cute font-bold text-[10px] px-3 py-1 rounded-full">VERIFIED ✓</span>';
+          else statusBadge = `<span class="bg-rose-100 text-rose-800 font-cute font-bold text-[10px] px-3 py-1 rounded-full">REJECTED: ${p.rejectionReason || ''}</span>`;
+
+          return `
+            <div class="p-4 rounded-3xl border-2 ${p.status === 'pending' ? 'border-amber-200 bg-amber-50/50' : 'border-sky-100 bg-white'} flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-toy-sm">
+              <div class="flex items-center gap-3">
+                <img src="${p.proofUrl}" onclick="openInspectSlipModal('${p.id}')" class="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-xs cursor-pointer hover:scale-105 transition" title="ดูสลิป">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-800 text-xs sm:text-sm font-cute">${p.avatar} ${p.memberName}</span>
+                    <span class="font-cute font-bold text-emerald-600 text-xs sm:text-sm">฿${p.amount.toLocaleString()}</span>
+                  </div>
+                  <span class="text-[11px] font-cute text-slate-400">${p.paymentMethod} • ${p.transferredAt}</span>
+                  ${p.note ? `<p class="text-[11px] text-slate-600 italic mt-0.5 font-sans">"${p.note}"</p>` : ''}
+                </div>
+              </div>
+              <div class="flex items-center gap-2 justify-end font-cute">
+                ${statusBadge}
+                <button onclick="openInspectSlipModal('${p.id}')" class="px-3.5 py-1.5 rounded-full bg-sky-50 hover:bg-sky-100 text-toy-blueDeep text-xs font-bold transition border border-sky-100 shadow-xs">
+                  INSPECT
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Tab 3: Expenses
+      const expList = document.getElementById('expense-history-list');
+      expList.innerHTML = state.expenses.map(e => `
+        <div class="flex items-center justify-between p-3.5 rounded-2xl border-2 border-white bg-sky-50/60 shadow-toy-sm">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-white border border-sky-100 flex items-center justify-center text-base shadow-xs">
+              ${e.category === 'Food' ? '🍜' : e.category === 'Accommodation' ? '🏨' : '⛽'}
+            </div>
+            <div>
+              <span class="font-bold text-xs sm:text-sm text-slate-800 block font-cute">${e.title}</span>
+              <span class="text-[10px] font-cute text-slate-400">PAID BY ${e.payer} // POOL FUND</span>
+            </div>
+          </div>
+          <div class="text-right font-cute">
+            <span class="font-bold text-rose-500 text-xs sm:text-sm block">-฿${e.amount.toLocaleString()}</span>
+            <span class="text-[10px] text-slate-400">${e.date}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function switchMoneyTab(tabKey) {
+      state.activeMoneyTab = tabKey;
+      ['contributions', 'proofs', 'expenses'].forEach(t => {
+        document.getElementById(`tab-money-${t}`).className = 'flex-1 py-2.5 rounded-full text-slate-600 hover:text-toy-blueDeep flex items-center justify-center gap-1.5 transition';
+        document.getElementById(`money-content-${t}`).classList.add('hidden');
+      });
+
+      document.getElementById(`tab-money-${tabKey}`).className = 'flex-1 py-2.5 rounded-full bg-toy-blue text-white shadow-toy-btn flex items-center justify-center gap-1.5 transition font-bold';
+      document.getElementById(`money-content-${tabKey}`).classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function renderChat() {
+      const container = document.getElementById('chat-messages-container');
+      let filtered = state.messages;
+      if (state.chatFilter === 'note_reference') {
+        filtered = filtered.filter(m => m.type === 'note_reference' || m.replyToNoteId);
+      }
+
+      container.innerHTML = filtered.map(msg => {
+        if (msg.type === 'system') {
+          return `
+            <div class="flex justify-center my-2 font-cute">
+              <span class="px-4 py-1.5 bg-white text-slate-600 text-[10px] font-bold rounded-full border-2 border-white shadow-xs">
+                🎈 SYSTEM LOG: ${msg.content} [${msg.time}]
+              </span>
+            </div>
+          `;
+        }
+
+        const isMe = msg.sender === state.currentUser.name;
+
+        if (msg.type === 'note_reference') {
+          const note = state.notes.find(n => n.id === msg.referencedNoteId);
+          return `
+            <div class="flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}">
+              <span class="text-2xl">${msg.avatar || '👤'}</span>
+              <div class="max-w-md w-full">
+                <div class="flex items-center gap-2 mb-1 ${isMe ? 'justify-end' : ''} font-cute">
+                  <span class="text-xs font-bold text-slate-800">${msg.sender}</span>
+                  <span class="text-[9px] text-slate-400">${msg.time}</span>
+                </div>
+                <div class="p-4 rounded-3xl bg-amber-50 text-amber-950 border-2 border-amber-200 shadow-toy-sm space-y-2">
+                  <div class="flex items-center justify-between text-[10px] font-cute font-bold text-amber-800">
+                    <span class="flex items-center gap-1.5">📌 // ATTACHED POST-IT</span>
+                    <span class="bg-white text-amber-900 px-2 py-0.5 rounded-full">${note ? note.category : 'NOTE'}</span>
+                  </div>
+                  <p class="text-xs sm:text-sm font-medium font-sans whitespace-pre-wrap">${note ? note.content : 'เนื้อหาโน้ต'}</p>
+                  <div class="pt-2 border-t border-amber-200 flex items-center justify-between font-cute">
+                    <span class="text-[11px] text-slate-500">❤️ ${note ? note.likes : 0} • 💬 ${note ? note.comments.length : 0}</span>
+                    <div class="flex gap-2">
+                      <button onclick="setReplyTarget('note', '${note ? note.id : ''}', '${note ? note.content : ''}')" class="px-3 py-1 bg-toy-blue hover:brightness-105 text-white rounded-full text-xs font-bold transition flex items-center gap-1 shadow-xs">
+                        <i data-lucide="reply" class="w-3 h-3"></i> REPLY NOTE
+                      </button>
+                      <button onclick="navigate('board')" class="px-2.5 py-1 bg-white hover:bg-sky-50 text-slate-700 rounded-full text-xs font-bold transition border border-sky-100">
+                        BOARD
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        let replyHeader = '';
+        if (msg.replyToNoteId) {
+          const targetNote = state.notes.find(n => n.id === msg.replyToNoteId);
+          replyHeader = `
+            <div class="mb-1.5 px-2.5 py-1 rounded-xl bg-black/5 text-[10px] font-cute text-slate-600 flex items-center gap-1.5 border-l-2 border-toy-blue">
+              <i data-lucide="corner-down-right" class="w-3 h-3 text-toy-blue"></i>
+              <span class="font-bold text-toy-blueDeep">REPLY NOTE:</span>
+              <span class="truncate italic max-w-[200px]">"${targetNote ? targetNote.content : 'ไอเดีย'}"</span>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
+            <span class="text-2xl">${msg.avatar || '👤'}</span>
+            <div class="max-w-sm sm:max-w-md">
+              <div class="flex items-center gap-1.5 mb-1 ${isMe ? 'justify-end' : ''} font-cute">
+                <span class="text-xs font-bold text-slate-800">${msg.sender}</span>
+                <span class="text-[9px] text-slate-400">${msg.time}</span>
+              </div>
+              <div class="p-3.5 rounded-3xl text-xs sm:text-sm ${
+                isMe ? 'bg-gradient-to-r from-toy-blue to-sky-400 text-white rounded-tr-none shadow-toy-btn' : 'bg-white text-slate-800 rounded-tl-none border-2 border-white shadow-toy-sm'
+              }">
+                ${replyHeader}
+                <p class="leading-relaxed whitespace-pre-wrap font-sans font-medium">${msg.content}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function scrollChatToBottom() {
+      setTimeout(() => {
+        const container = document.getElementById('chat-messages-container');
+        if (container) container.scrollTop = container.scrollHeight;
+      }, 50);
+    }
+
+    function setReplyTarget(type, id, previewText) {
+      state.replyingTo = { type, id, title: previewText };
+      const banner = document.getElementById('chat-reply-banner');
+      const bannerText = document.getElementById('chat-reply-banner-text');
+      bannerText.innerText = `REPLYING TO NOTE: "${previewText}" (ความเห็นจะซิงก์ไปที่โพสต์อิททันที)`;
+      banner.classList.remove('hidden');
+      document.getElementById('chat-input-text').focus();
+    }
+
+    function cancelChatReply() {
+      state.replyingTo = null;
+      document.getElementById('chat-reply-banner').classList.add('hidden');
+    }
+
+    function handleSendChatMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input-text');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      let replyToNoteId = null;
+      if (state.replyingTo && state.replyingTo.type === 'note') {
+        replyToNoteId = state.replyingTo.id;
+        const targetNote = state.notes.find(n => n.id === replyToNoteId);
+        if (targetNote) {
+          targetNote.comments.push({
+            id: `c-${Date.now()}`,
+            author: state.currentUser.name,
+            text: text,
+            source: 'chat'
+          });
+          state.activities.unshift(`${state.currentUser.name} ตอบกลับ Note "${targetNote.content.slice(0, 15)}..." จากในแชท`);
+        }
+      }
+
+      state.messages.push({
+        id: `m-${Date.now()}`,
+        sender: state.currentUser.name,
+        avatar: state.currentUser.avatar,
+        type: 'text',
+        replyToNoteId: replyToNoteId,
+        content: text,
+        time: timeStr
+      });
+
+      input.value = '';
+      cancelChatReply();
+      renderChat();
+      renderBoard();
+      scrollChatToBottom();
+      lucide.createIcons();
+    }
+
+    function openShareNoteModal() {
+      const picker = document.getElementById('share-note-picker-list');
+      picker.innerHTML = state.notes.map(n => `
+        <div onclick="shareNoteToChat('${n.id}')" class="p-3 rounded-2xl bg-sky-50/70 border-2 border-white hover:border-toy-blue cursor-pointer transition flex items-center justify-between shadow-xs">
+          <div class="min-w-0 flex-1 mr-2 font-cute">
+            <span class="text-[9px] font-bold uppercase text-toy-blueDeep block">${n.category} • โดย ${n.author}</span>
+            <p class="text-xs font-sans text-slate-800 truncate font-medium">${n.content}</p>
+          </div>
+          <span class="px-3 py-1 bg-toy-blue text-white rounded-full text-xs font-cute font-bold shrink-0 shadow-xs">SHARE</span>
+        </div>
+      `).join('');
+      openModal('share-note-modal');
+    }
+
+    function shareNoteToChat(noteId, event) {
+      if (event) event.stopPropagation();
+      const note = state.notes.find(n => n.id === noteId);
+      if (!note) return;
+
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      state.messages.push({
+        id: `m-${Date.now()}`,
+        sender: state.currentUser.name,
+        avatar: state.currentUser.avatar,
+        type: 'note_reference',
+        referencedNoteId: note.id,
+        content: `แชร์ไอเดีย: "${note.content}"`,
+        time: timeStr
+      });
+
+      state.activities.unshift(`${state.currentUser.name} แชร์ Note เข้าห้องแชท`);
+      closeModal('share-note-modal');
+      navigate('chat');
+      showToast('ATTACHED NOTE TO CHAT 💬📌');
+    }
+
+    function filterChat(type) {
+      state.chatFilter = type;
+      if (type === 'all') {
+        document.getElementById('chat-filter-all').className = 'px-3 py-1 rounded-full bg-toy-blue text-white shadow-xs';
+        document.getElementById('chat-filter-notes').className = 'px-3 py-1 rounded-full text-slate-500 hover:text-toy-blueDeep';
+      } else {
+        document.getElementById('chat-filter-notes').className = 'px-3 py-1 rounded-full bg-toy-blue text-white shadow-xs';
+        document.getElementById('chat-filter-all').className = 'px-3 py-1 rounded-full text-slate-500 hover:text-toy-blueDeep';
+      }
+      renderChat();
+      lucide.createIcons();
+    }
+
+    /* Payments */
+    function handleSlipFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        showToast('กรุณาอัปโหลดไฟล์รูปภาพ JPG, PNG หรือ WEBP');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('ขนาดไฟล์เกินกำหนด (10MB)');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        state.tempSlipDataUrl = e.target.result;
+        document.getElementById('slip-upload-placeholder').classList.add('hidden');
+        const box = document.getElementById('slip-preview-box');
+        box.classList.remove('hidden');
+        document.getElementById('slip-preview-img').src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function submitPaymentSlip() {
+      const amount = parseFloat(document.getElementById('pay-amount-input').value);
+      const date = document.getElementById('pay-date-input').value || new Date().toISOString().split('T')[0];
+      const time = document.getElementById('pay-time-input').value || '12:00';
+      const method = document.getElementById('pay-method-input').value;
+      const note = document.getElementById('pay-note-input').value.trim();
+
+      if (!amount || amount <= 0) {
+        showToast('กรุณาระบุจำนวนเงินที่ถูกต้อง');
+        return;
+      }
+
+      const proofUrl = state.tempSlipDataUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400&q=80';
+      const btn = document.getElementById('btn-submit-slip');
+      btn.innerText = 'TRANSMITTING...';
+      btn.disabled = true;
+
+      setTimeout(() => {
+        state.paymentSubmissions.unshift({
+          id: `pay-${Date.now()}`,
+          memberId: state.currentUser.id,
+          memberName: state.currentUser.name,
+          avatar: state.currentUser.avatar,
+          amount,
+          paymentMethod: method,
+          transferredAt: `${date} ${time}`,
+          proofUrl: proofUrl,
+          note: note,
+          status: 'pending',
+          submittedAt: new Date().toLocaleString('th-TH')
+        });
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        state.messages.push({
+          id: `m-${Date.now()}`,
+          type: 'system',
+          content: `${state.currentUser.name} ได้ส่งสลิปแจ้งโอนเงิน ฿${amount.toLocaleString()} รอการตรวจสอบ`,
+          time: timeStr
+        });
+
+        state.activities.unshift(`${state.currentUser.name} ส่งสลิปแจ้งโอนเงิน ฿${amount.toLocaleString()}`);
+
+        btn.innerText = 'SUBMIT PROOF';
+        btn.disabled = false;
+        closeModal('submit-payment-modal');
+        showToast('TRANSMITTED // รอ Owner ยืนยันสลิป ⏳');
+        renderAll();
+      }, 450);
+    }
+
+    function openInspectSlipModal(paymentId) {
+      const payment = state.paymentSubmissions.find(p => p.id === paymentId);
+      if (!payment) return;
+
+      state.inspectingPaymentId = paymentId;
+      document.getElementById('inspect-member-name').innerText = `จาก ${payment.avatar} ${payment.memberName}`;
+      document.getElementById('inspect-slip-img').src = payment.proofUrl;
+      document.getElementById('inspect-slip-amount').innerText = `฿${payment.amount.toLocaleString()}`;
+      document.getElementById('inspect-slip-time').innerText = `${payment.paymentMethod} • ${payment.transferredAt}`;
+      document.getElementById('inspect-slip-note').innerText = payment.note || 'ไม่มีหมายเหตุ';
+
+      openModal('verify-slip-modal');
+    }
+
+    function confirmVerifySlip() {
+      const payment = state.paymentSubmissions.find(p => p.id === state.inspectingPaymentId);
+      if (!payment) return;
+
+      payment.status = 'verified';
+      payment.verifiedAt = new Date().toLocaleString('th-TH');
+      payment.verifiedBy = state.currentUser.name;
+
+      const member = state.members.find(m => m.id === payment.memberId);
+      if (member) {
+        member.paid = (member.paid || 0) + payment.amount;
+      }
+
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      state.messages.push({
+        id: `m-${Date.now()}`,
+        type: 'system',
+        content: `🎉 ${state.currentUser.name} อนุมัติยอดโอน ฿${payment.amount.toLocaleString()} ของ ${payment.memberName} เรียบร้อยแล้ว`,
+        time: timeStr
+      });
+
+      state.activities.unshift(`${state.currentUser.name} อนุมัติสลิปของ ${payment.memberName} (฿${payment.amount.toLocaleString()})`);
+
+      closeModal('verify-slip-modal');
+      showToast(`VERIFIED: ฿${payment.amount.toLocaleString()} เข้ากองกลางแล้ว! 🎉`);
+      renderAll();
+    }
+
+    function openRejectSlipDialog() {
+      openModal('reject-reason-modal');
+    }
+
+    function submitRejectSlip() {
+      const payment = state.paymentSubmissions.find(p => p.id === state.inspectingPaymentId);
+      if (!payment) return;
+
+      const reason = document.querySelector('input[name="reject-reason"]:checked')?.value || 'หลักฐานไม่ชัดเจน';
+      payment.status = 'rejected';
+      payment.rejectionReason = reason;
+
+      state.activities.unshift(`${state.currentUser.name} ปฏิเสธสลิปของ ${payment.memberName} (${reason})`);
+
+      closeModal('reject-reason-modal');
+      closeModal('verify-slip-modal');
+      showToast('REJECTED // ปฏิเสธสลิปแล้ว');
+      renderAll();
+    }
+
+    function renderPolls() {
+      const container = document.getElementById('polls-list-container');
+      container.innerHTML = state.polls.map(poll => {
+        const totalVotes = poll.options.reduce((sum, o) => sum + o.votes, 0);
+        return `
+          <div class="bg-white/90 backdrop-blur-md p-6 rounded-[32px] border-4 border-white shadow-toy-card space-y-4 font-cute">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-bold text-slate-800 text-base font-sans">${poll.question}</h3>
+                <span class="text-[10px] text-slate-400">CLOSES: ${poll.closesAt}</span>
+              </div>
+              <span class="text-xs font-bold text-toy-lilac bg-purple-100 px-3 py-1 rounded-full shadow-xs">
+                ${totalVotes} VOTES
+              </span>
+            </div>
+
+            <div class="space-y-2.5">
+              ${poll.options.map(opt => {
+                const pct = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                const isSelected = poll.userVotedOption === opt.id;
+                return `
+                  <div onclick="castVote('${poll.id}', '${opt.id}')" class="cursor-pointer p-3.5 rounded-2xl border-2 transition ${
+                    isSelected ? 'border-toy-lilac bg-purple-50/70 shadow-toy-sm' : 'border-sky-100 hover:border-sky-200 bg-white'
+                  }">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-800 mb-1.5 font-sans">
+                      <span>${opt.label}</span>
+                      <span class="text-slate-500 font-cute">${opt.votes} (${pct}%)</span>
+                    </div>
+                    <div class="w-full bg-sky-100 h-2.5 rounded-full overflow-hidden border border-white">
+                      <div class="bg-gradient-to-r from-toy-lilac to-purple-400 h-2.5 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function castVote(pollId, optionId) {
+      const poll = state.polls.find(p => p.id === pollId);
+      if (!poll) return;
+
+      if (poll.userVotedOption) {
+        const prevOpt = poll.options.find(o => o.id === poll.userVotedOption);
+        if (prevOpt && prevOpt.votes > 0) prevOpt.votes--;
+      }
+
+      if (optionId && poll.userVotedOption !== optionId) {
+        const newOpt = poll.options.find(o => o.id === optionId);
+        if (newOpt) newOpt.votes++;
+        poll.userVotedOption = optionId;
+        showToast('VOTE RECORDED! 🗳️✨');
+      } else {
+        poll.userVotedOption = null;
+      }
+      renderPolls();
+      renderDashboard();
+    }
+
+    function renderMembers() {
+      const grid = document.getElementById('full-members-grid');
+      grid.innerHTML = state.members.map(m => {
+        const isOwner = m.role === 'owner';
+        return `
+          <div class="bg-white/90 backdrop-blur-md p-5 rounded-[32px] border-4 border-white shadow-toy-card flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <span class="text-3xl animate-wiggle-hover">${m.avatar}</span>
+                  <div>
+                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-1.5 font-cute">
+                      ${m.name}
+                      ${isOwner ? '<span class="text-[9px] bg-sky-100 text-toy-blueDeep px-2 py-0.5 rounded-full font-bold uppercase">Leader</span>' : ''}
+                    </h4>
+                    <span class="text-xs font-cute text-slate-400">${m.paid >= state.trip.budgetPerPerson ? 'PAID: ฿3,500 ✅' : 'UNPAID'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="border-t-2 border-sky-50 pt-3 font-cute">
+              <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">DIGITAL PLEDGE SIGNATURE:</span>
+              <div class="h-14 bg-sky-50/50 rounded-2xl flex items-center justify-center overflow-hidden border border-sky-100">
+                ${m.signature ? `<img src="${m.signature}" class="max-h-12 object-contain" alt="Signature">` : '<span class="text-[10px] text-slate-400 italic">NO SIGNATURE</span>'}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function saveExpense() {
+      const title = document.getElementById('expense-title-input').value.trim();
+      const amount = parseFloat(document.getElementById('expense-amount-input').value);
+      const category = document.getElementById('expense-category-input').value;
+      const payer = document.getElementById('expense-payer-input').value;
+
+      if (!title || !amount || amount <= 0) {
+        showToast('กรุณากรอกรายการและจำนวนเงิน');
+        return;
+      }
+
+      state.expenses.unshift({
+        id: `exp-${Date.now()}`,
+        title,
+        amount,
+        category,
+        payer,
+        source: 'trip_fund',
+        date: new Date().toISOString().split('T')[0]
+      });
+
+      closeModal('add-expense-modal');
+      showToast('SAVED EXPENSE 🧾✨');
+      renderAll();
+    }
+
+    function openJoinModal() {
+      document.getElementById('join-name-input').value = state.currentUser.name;
+      selectAvatar(state.currentUser.avatar);
+      clearSignatureCanvas();
+      openModal('join-trip-modal');
+      setTimeout(initSignatureCanvas, 100);
+    }
+
+    function saveUserProfile() {
+      const name = document.getElementById('join-name-input').value.trim();
+      if (!name) {
+        showToast('กรุณากรอกชื่อเล่นของคุณ');
+        return;
+      }
+      state.currentUser.name = name;
+      if (hasDrawn && canvas) {
+        state.currentUser.signature = canvas.toDataURL('image/png');
+      }
+
+      const mem = state.members.find(m => m.id === state.currentUser.id);
+      if (mem) {
+        mem.name = name;
+        mem.avatar = state.currentUser.avatar;
+        if (state.currentUser.signature) mem.signature = state.currentUser.signature;
+      }
+
+      document.getElementById('current-user-avatar').innerText = state.currentUser.avatar;
+      document.getElementById('current-user-name').innerText = `${name} (${state.currentUser.role.toUpperCase()})`;
+      closeModal('join-trip-modal');
+      showToast('PROFILE & SIGNATURE SAVED 🎉✨');
+      renderAll();
+    }
+
+    function addPollOptionInput() {
+      const container = document.getElementById('poll-options-inputs');
+      const count = container.querySelectorAll('input').length + 1;
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'poll-option-field w-full px-3 py-2 rounded-2xl bg-sky-50/50 border-2 border-sky-100 text-slate-800 text-xs';
+      inp.placeholder = `ตัวเลือก ${count}`;
+      container.appendChild(inp);
+    }
+
+    function savePoll() {
+      const question = document.getElementById('poll-question-input').value.trim();
+      const optionInputs = document.querySelectorAll('.poll-option-field');
+      const options = [];
+
+      optionInputs.forEach((inp, idx) => {
+        if (inp.value.trim()) {
+          options.push({ id: `opt-${idx + 1}`, label: inp.value.trim(), votes: 0 });
+        }
+      });
+
+      if (!question || options.length < 2) {
+        showToast('กรุณาระบุคำถามและอย่างน้อย 2 ตัวเลือก');
+        return;
+      }
+
+      state.polls.unshift({
+        id: `p-${Date.now()}`,
+        question,
+        closesAt: 'เปิดตลอดทริป',
+        options,
+        userVotedOption: null
+      });
+
+      closeModal('create-poll-modal');
+      showToast('LAUNCHED SQUAD POLL 🗳️');
+      renderAll();
+    }
+
+    function createNewTrip() {
+      const name = document.getElementById('new-trip-name').value.trim();
+      const dest = document.getElementById('new-trip-dest').value.trim();
+      const budget = parseFloat(document.getElementById('new-trip-budget').value);
+
+      if (!name) {
+        showToast('กรุณาระบุชื่อทริป');
+        return;
+      }
+
+      state.trip.name = name;
+      if (dest) state.trip.destination = dest;
+      if (budget) state.trip.budgetPerPerson = budget;
+
+      document.getElementById('header-trip-name').innerText = `${name.toUpperCase()} [TOYROOM-01]`;
+      closeModal('create-trip-modal');
+      showToast('NEW TOYROOM INITIALIZED 🚀');
+      navigate('dashboard');
+    }
+
+    /* Modal helpers */
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-message').innerText = msg;
+      toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-[-100px]', 'opacity-0');
+      }, 2400);
+    }
+    function copyTripLink() {
+      const text = document.getElementById('invite-link-text')?.innerText || window.location.href;
+      const dummy = document.createElement('textarea');
+      document.body.appendChild(dummy);
+      dummy.value = text;
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+      showToast('COPIED INVITE LINK 📋✨');
+    }
+    function openMobileMoreMenu() {
+      document.getElementById('mobile-more-sheet').classList.remove('hidden');
+    }
+    function closeMobileMoreMenu() {
+      document.getElementById('mobile-more-sheet').classList.add('hidden');
+    }
+    function openTripSwitcherModal() {
+      showToast('ACTIVE ROOM: PATTAYA TOY ROOM 3D2N 🧸');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().split('T')[0];
+      const dateInp = document.getElementById('pay-date-input');
+      if (dateInp) dateInp.value = today;
+
+      renderAll();
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
