@@ -152,17 +152,18 @@ test("real M2.3 payment upload, idempotency, access control, and cleanup", async
 
     const { error: membersError } = await admin.from("trip_members").insert([
       { trip_id: tripId, user_id: identities.owner, display_name: "M2.3 E2E Owner", role: "owner", attendance: "maybe" },
-      { trip_id: tripId, user_id: identities.maybe, display_name: "M2.3 E2E Maybe", attendance: "maybe" },
-      { trip_id: tripId, user_id: identities.notGoing, display_name: "M2.3 E2E Not Going", attendance: "not_going" },
+      { trip_id: tripId, user_id: identities.maybe, display_name: "M2.3 E2E Maybe", role: "member", attendance: "maybe" },
+      { trip_id: tripId, user_id: identities.notGoing, display_name: "M2.3 E2E Not Going", role: "member", attendance: "not_going" },
       {
         trip_id: tripId,
         user_id: identities.going,
         display_name: "M2.3 E2E Going",
+        role: "member",
         attendance: "going",
         signature_path: signaturePath,
         commitment_signed_at: new Date().toISOString(),
       },
-      { trip_id: tripId, user_id: identities.compensation, display_name: "M2.3 E2E Compensation", attendance: "maybe" },
+      { trip_id: tripId, user_id: identities.compensation, display_name: "M2.3 E2E Compensation", role: "member", attendance: "maybe" },
     ]);
     if (membersError) throw membersError;
 
@@ -281,11 +282,16 @@ test("real M2.3 payment upload, idempotency, access control, and cleanup", async
     expect(await countSubmissions(admin, tripId, compensationKey)).toBe(0);
     expect(await listTree(admin, tripId)).toEqual(compensationPathsBefore);
 
+    const ownerCashKey = randomUUID();
     const ownerCash = await submit(request, endpoint, identities.owner, multipart({
-      clientRequestId: randomUUID(), paymentMethod: "cash",
+      clientRequestId: ownerCashKey, paymentMethod: "cash",
     }));
     expect(ownerCash.status()).toBe(201);
     expect((await ownerCash.json()).proofAvailable).toBe(false);
+    const { data: ownerCashRow, error: ownerCashRowError } = await admin.from("payment_submissions")
+      .select("status,payment_method,proof_path").eq("trip_id", tripId).eq("client_request_id", ownerCashKey).single();
+    if (ownerCashRowError) throw ownerCashRowError;
+    expect(ownerCashRow).toMatchObject({ status: "pending", payment_method: "cash", proof_path: null });
 
     const notGoingOther = await submit(request, endpoint, identities.notGoing, multipart({
       clientRequestId: randomUUID(), paymentMethod: "other",
@@ -343,12 +349,12 @@ test("real M2.3 payment upload, idempotency, access control, and cleanup", async
       trip_id: tripId,
       contributor_id: identities.maybe,
       client_request_id: paymentRequestId,
-      amount: "3500.00",
       payment_method: "bank_transfer",
-      payment_occurred_at: PAYMENT_AT,
       status: "pending",
       note: "โอนค่าที่พัก",
     });
+    expect(Number(savedRow.amount)).toBe(3500);
+    expect(Date.parse(savedRow.payment_occurred_at)).toBe(Date.parse(PAYMENT_AT));
     expect(savedRow.request_hash).toMatch(/^[a-f0-9]{64}$/);
     expect(savedProofPath).toMatch(new RegExp(`^${tripId}/${identities.maybe}/${firstBody.id}/[0-9a-f-]{36}\\.png$`));
     expect(await countSubmissions(admin, tripId, paymentRequestId)).toBe(1);
@@ -420,7 +426,7 @@ test("real M2.3 payment upload, idempotency, access control, and cleanup", async
       .select("id,proof_path,amount").eq("trip_id", tripId).eq("client_request_id", differentPayloadRequestId);
     if (differentRowsError) throw differentRowsError;
     expect(differentRows).toHaveLength(1);
-    expect(["3600.00", "3601.00"]).toContain(differentRows[0].amount);
+    expect([3600, 3601]).toContain(Number(differentRows[0].amount));
     expect(differentRows[0].proof_path).toBeTruthy();
     expect(await listTree(admin, tripId)).toHaveLength(differentPayloadPathsBeforeRace.length + 1);
 
@@ -452,8 +458,18 @@ test("real M2.3 payment upload, idempotency, access control, and cleanup", async
       process.env.NEXT_PUBLIC_SUPABASE_URL,
     );
     const directPublicResponse = await request.get(directPublicUrl.toString());
+    expect(directPublicResponse.ok()).toBe(false);
     expect(directPublicResponse.status()).not.toBe(200);
     expect((await directPublicResponse.body()).equals(PNG_BYTES)).toBe(false);
+
+    const { data: persistedRows, error: persistedRowsError } = await admin.from("payment_submissions")
+      .select("id,status,proof_path").eq("trip_id", tripId);
+    if (persistedRowsError) throw persistedRowsError;
+    expect(persistedRows).toHaveLength(6);
+    expect(persistedRows?.every(({ status }) => status === "pending")).toBe(true);
+    const persistedPaths = persistedRows.map(({ proof_path }) => proof_path).filter((path): path is string => Boolean(path)).sort();
+    expect(persistedPaths).toHaveLength(3);
+    expect(await listTree(admin, tripId)).toEqual(persistedPaths);
   } catch (error) {
     testFailure = error;
   } finally {
@@ -490,16 +506,17 @@ test("real M2.3 payment upload, idempotency, access control, and cleanup", async
       if (error) throw error;
     });
     await attempt("fixture verification", async () => {
-      const [profiles, trips, members, contributions, payments, objects, signatures] = await Promise.all([
+      const [profiles, trips, members, invites, contributions, payments, objects, signatures] = await Promise.all([
         admin.from("profiles").select("id").in("id", profileIds),
         admin.from("trips").select("id").eq("id", tripId),
         admin.from("trip_members").select("id").eq("trip_id", tripId),
+        admin.from("trip_invites").select("id").eq("trip_id", tripId),
         admin.from("contributions").select("id").eq("trip_id", tripId),
         admin.from("payment_submissions").select("id").eq("trip_id", tripId),
         listTree(admin, tripId),
         listIdentityFiles(admin, SIGNATURE_BUCKET, identities.going),
       ]);
-      for (const result of [profiles, trips, members, contributions, payments]) {
+      for (const result of [profiles, trips, members, invites, contributions, payments]) {
         if (result.error) throw result.error;
         if (result.data?.length) throw new Error(`fixture rows remain: ${result.data.length}`);
       }

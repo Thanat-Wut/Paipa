@@ -112,32 +112,12 @@ After each database/domain phase, run lint, typecheck, unit tests, SQL integrati
 
 Before M2.1, the linked Supabase project reports 0 profiles, 0 trips, 0 trip members, and 0 invites. Its migration history matches the repository's M1 baseline through `20260923120004`. The migration is additive and idempotently backfills current membership pairs; it does not delete or rewrite existing business rows.
 
-## M2.3 runtime-verification handoff
+## M2.3 runtime-verification result
 
-M2.3 source, unit tests, and transactional SQL checks are implemented. Real HTTP, Storage, and browser verification remains blocked until a runner passes all of these preflight checks:
+Runtime verification completed on 2026-09-24 against the linked Supabase project using the real Next.js app, Supabase REST/Storage, service configuration loaded from the local environment, and Chromium. No Supabase mocks were used. The full `npm run test:e2e` run passed both browser specs: M1 trip/commitment flow and M2.3 payment submission flow (2 passed, 0 failed, 0 skipped).
 
-```text
-Node outbound HTTPS 443    PASS
-Supabase REST              PASS
-Supabase Storage           PASS
-Chromium / Playwright      PASS
-```
+The M2.3 HTTP flow verified valid PNG proof upload and authorized retrieval by owner and contributor; cash with no proof; invalid, unsupported, and oversized proof rejection; maybe/going/not-going/former/non-member and archived-trip cases; same-key replay and conflict; concurrent same-hash replay and different-hash conflict; public Storage denial; and cleanup of an uploaded object after a forced database insert failure. It also compared persisted payment rows and proof objects before cleanup. The test's `finally` cleanup checks fixture profiles, trip, memberships, invites, contributions, submissions, signature, and payment-proof objects.
 
-The latest blocked runner resolved the Supabase hostname, but Node's TCP connection to port 443 failed with `EACCES`, REST and Storage fetches failed, and Chromium launch failed with `spawn EPERM`. These are runner limitations until the same flow reaches the app and demonstrates a product defect.
+The migration history on the linked project matched the repository migrations through `20260923195138`. The M2.1, M2.2, and M2.3 transactional SQL suites passed against the linked database and roll back their fixtures. Lint, typecheck, unit tests, and production build passed. M2.3 runtime verification required E2E fixture and assertion corrections only; no production source changes were needed.
 
-In a supported runner, run the M1 browser regression first and then the M2.3 HTTP integration spec, with real Supabase configuration and no mocks:
-
-```bash
-npm run test:e2e -- e2e/m1.spec.ts
-npm run test:e2e -- e2e/m2-payment-submission.spec.ts
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-The HTTP gate must prove real bank-transfer proof upload and retrieval, cash without proof, invalid and oversized proof rejection without persistence, current/former/non-member and archived-trip rules, same-key replay and conflict, both same-payload and different-payload concurrent races, contributor/owner/unauthorized proof reads, direct public Storage denial, and uploaded-object compensation after a database insert failure. Verify each run's rows and objects are removed afterward.
-
-The current HTTP spec covers the basic submit/replay/conflict flow, same-payload race, access checks, public-client Storage denial, and run cleanup. Before declaring the full runtime gate complete, make sure the cases it does not currently establish are exercised: the fixture named `former` is not inserted as a former member (its denial currently duplicates the non-member case); parallel same-key requests with different payload hashes; and a real HTTP request whose post-upload database insert is forced to fail and whose uploaded object is then confirmed deleted. Invalid-request cases should also assert their run-scoped database and Storage counts remain unchanged.
-
-Do not start M2.4 until the M1 browser regression and the complete M2.3 real HTTP/Storage gate both pass with no skipped M1 cases.
+The runtime gate is complete. Do not begin M2.4 as part of this verification task; it remains a separate phase requiring review of this handoff.
