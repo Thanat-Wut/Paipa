@@ -10,6 +10,8 @@ export type MoneySummary = {
   expected: MoneyDecimal;
   pending: MoneyDecimal;
   collected: MoneyDecimal;
+  spent: MoneyDecimal;
+  available: MoneyDecimal;
   goingCount: number;
 };
 
@@ -48,6 +50,14 @@ function isMoneyDecimal(value: unknown): value is MoneyDecimal {
   return typeof value === "string" && DECIMAL_PATTERN.test(value);
 }
 
+function isSignedMoneyDecimal(value: unknown): value is MoneyDecimal {
+  return isMoneyDecimal(value)
+    || (typeof value === "string"
+      && value.startsWith("-")
+      && value !== "-0.00"
+      && DECIMAL_PATTERN.test(value.slice(1)));
+}
+
 function isMoneyStatus(value: unknown): value is MoneyStatus {
   return typeof value === "string" && STATUS_VALUES.has(value as MoneyStatus);
 }
@@ -58,7 +68,9 @@ export function parseMoneySummary(value: unknown): MoneySummary | null {
   if (!isMoneyDecimal(value.budgetPerPerson)
     || !isMoneyDecimal(value.expected)
     || !isMoneyDecimal(value.pending)
-    || !isMoneyDecimal(value.collected)) return null;
+    || !isMoneyDecimal(value.collected)
+    || !isMoneyDecimal(value.spent)
+    || !isSignedMoneyDecimal(value.available)) return null;
   if (!Number.isSafeInteger(value.goingCount) || (value.goingCount as number) < 0) return null;
 
   return {
@@ -67,6 +79,8 @@ export function parseMoneySummary(value: unknown): MoneySummary | null {
     expected: value.expected,
     pending: value.pending,
     collected: value.collected,
+    spent: value.spent,
+    available: value.available,
     goingCount: value.goingCount as number,
   };
 }

@@ -212,6 +212,8 @@ test("real M2.5 money summaries and contribution access follow budget, attendanc
       expected: "7000.00",
       pending: "2000.00",
       collected: "5000.00",
+      spent: "0.00",
+      available: "5000.00",
       goingCount: 2,
     };
     const ownerSummaryResponse = await money(request, tripId, identities.owner.id);
@@ -285,6 +287,8 @@ test("real M2.5 money summaries and contribution access follow budget, attendanc
       expected: "7000.00",
       pending: "2400.30",
       collected: "5600.00",
+      spent: "0.00",
+      available: "5600.00",
     });
     let breakdownResponse = await contributions(request, tripId, identities.owner.id);
     let breakdown = await breakdownResponse.json() as Array<Record<string, unknown>>;
@@ -321,14 +325,14 @@ test("real M2.5 money summaries and contribution access follow budget, attendanc
       .update({ budget_per_person: "4000.00" }).eq("id", tripId);
     if (budgetError) throw budgetError;
     summaryResponse = await money(request, tripId, identities.owner.id);
-    expect(await summaryResponse.json()).toMatchObject({ budgetPerPerson: "4000.00", expected: "8000.00" });
+    expect(await summaryResponse.json()).toMatchObject({ budgetPerPerson: "4000.00", expected: "8000.00", spent: "0.00", available: "5600.00" });
 
     const { error: attendanceError } = await admin.from("trip_members")
       .update({ attendance: "not_going", signature_path: null, commitment_signed_at: null })
       .eq("trip_id", tripId).eq("user_id", identities.member.id);
     if (attendanceError) throw attendanceError;
     summaryResponse = await money(request, tripId, identities.owner.id);
-    expect(await summaryResponse.json()).toMatchObject({ expected: "4000.00", goingCount: 1 });
+    expect(await summaryResponse.json()).toMatchObject({ expected: "4000.00", spent: "0.00", available: "5600.00", goingCount: 1 });
 
     const { error: rejoinError } = await admin.from("trip_members").insert({
       trip_id: tripId,
@@ -357,7 +361,7 @@ test("real M2.5 money summaries and contribution access follow budget, attendanc
       .eq("trip_id", tripId).eq("user_id", identities.former.id);
     if (formerGoingError) throw formerGoingError;
     summaryResponse = await money(request, tripId, identities.owner.id);
-    expect(await summaryResponse.json()).toMatchObject({ expected: "8000.00", goingCount: 2 });
+    expect(await summaryResponse.json()).toMatchObject({ expected: "8000.00", spent: "0.00", available: "5600.00", goingCount: 2 });
 
     const { error: memberGoingError } = await admin.from("trip_members")
       .update({
@@ -368,7 +372,7 @@ test("real M2.5 money summaries and contribution access follow budget, attendanc
       .eq("trip_id", tripId).eq("user_id", identities.member.id);
     if (memberGoingError) throw memberGoingError;
     summaryResponse = await money(request, tripId, identities.owner.id);
-    expect(await summaryResponse.json()).toMatchObject({ expected: "12000.00", goingCount: 3 });
+    expect(await summaryResponse.json()).toMatchObject({ expected: "12000.00", spent: "0.00", available: "5600.00", goingCount: 3 });
     expect(await ledgerSnapshot(admin, tripId)).toEqual(ledgerBeforeLifecycle);
   } catch (error) {
     testFailure = error;

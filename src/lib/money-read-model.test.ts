@@ -6,6 +6,16 @@ import {
 } from "./money-read-model";
 
 const MEMBER_ID = "a1c69408-60d3-4fb6-9a9d-943ec951f50c";
+const SUMMARY = {
+  currency: "THB",
+  budgetPerPerson: "3500.00",
+  expected: "7000.00",
+  pending: "2000.00",
+  collected: "5000.00",
+  spent: "0.00",
+  available: "5000.00",
+  goingCount: 2,
+};
 
 describe("M2.5 money read model response validation", () => {
   it("accepts summary money only as exact two-decimal strings", () => {
@@ -15,6 +25,8 @@ describe("M2.5 money read model response validation", () => {
       expected: "7000.00",
       pending: "2000.00",
       collected: "5000.00",
+      spent: "0.00",
+      available: "5000.00",
       goingCount: 2,
     })).toEqual({
       currency: "THB",
@@ -22,17 +34,44 @@ describe("M2.5 money read model response validation", () => {
       expected: "7000.00",
       pending: "2000.00",
       collected: "5000.00",
+      spent: "0.00",
+      available: "5000.00",
       goingCount: 2,
     });
   });
 
+  it.each(["0.00", "0.30", "-500.00", "-0.50"])("preserves canonical signed available %s", (available) => {
+    expect(parseMoneySummary({ ...SUMMARY, available })).toEqual({ ...SUMMARY, available });
+  });
+
+  it.each(["spent", "available"] as const)("requires %s in the RPC summary", (field) => {
+    const missing = { ...SUMMARY } as Record<string, unknown>;
+    delete missing[field];
+    expect(parseMoneySummary(missing)).toBeNull();
+  });
+
+  it.each(["budgetPerPerson", "expected", "pending", "collected", "spent"] as const)(
+    "rejects negative %s",
+    (field) => expect(parseMoneySummary({ ...SUMMARY, [field]: "-0.50" })).toBeNull(),
+  );
+
   it.each([
-    { currency: "THB", budgetPerPerson: 3500, expected: "7000.00", pending: "0.00", collected: "0.00", goingCount: 2 },
-    { currency: "THB", budgetPerPerson: "3500", expected: "7000.00", pending: "0.00", collected: "0.00", goingCount: 2 },
-    { currency: "USD", budgetPerPerson: "3500.00", expected: "7000.00", pending: "0.00", collected: "0.00", goingCount: 2 },
-    { currency: "THB", budgetPerPerson: "NaN", expected: "7000.00", pending: "0.00", collected: "0.00", goingCount: 2 },
-    { currency: "THB", budgetPerPerson: "-1.00", expected: "7000.00", pending: "0.00", collected: "0.00", goingCount: 2 },
-    { currency: "THB", budgetPerPerson: "3500.00", expected: "7000.00", pending: "0.00", collected: "0.00", goingCount: -1 },
+    ["spent", 1], ["available", -1],
+    ["spent", "0.3"], ["available", "-0.5"],
+    ["spent", "01.00"], ["available", "-01.00"],
+    ["spent", "-0.50"], ["available", "-0.00"],
+    ["available", "+0.50"], ["available", "00.50"],
+  ] as const)("rejects malformed %s value %s", (field, value) => {
+    expect(parseMoneySummary({ ...SUMMARY, [field]: value })).toBeNull();
+  });
+
+  it.each([
+    { ...SUMMARY, budgetPerPerson: 3500 },
+    { ...SUMMARY, budgetPerPerson: "3500" },
+    { ...SUMMARY, currency: "USD" },
+    { ...SUMMARY, budgetPerPerson: "NaN" },
+    { ...SUMMARY, budgetPerPerson: "-1.00" },
+    { ...SUMMARY, goingCount: -1 },
     null,
   ])("rejects malformed summary response %#", (value) => {
     expect(parseMoneySummary(value)).toBeNull();

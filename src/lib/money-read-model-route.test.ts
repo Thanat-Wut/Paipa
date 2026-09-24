@@ -20,6 +20,8 @@ const SUMMARY = {
   expected: "7000.00",
   pending: "2000.00",
   collected: "5000.00",
+  spent: "0.00",
+  available: "5000.00",
   goingCount: 2,
 };
 
