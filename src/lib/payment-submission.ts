@@ -22,6 +22,7 @@ export type PaymentRequestHashInput = {
   paymentOccurredAt: string;
   note: string;
   proofDigest: string | null;
+  resubmissionOf?: string | null;
 };
 
 const PAYMENT_METHODS = new Set<PaymentMethod>(["bank_transfer", "cash", "other"]);
@@ -106,6 +107,9 @@ export function buildPaymentRequestHash(input: PaymentRequestHashInput): string 
   if (input.proofDigest !== null && !/^[a-f0-9]{64}$/.test(input.proofDigest)) {
     throw new Error("Invalid payment proof digest");
   }
+  if (input.resubmissionOf !== undefined && input.resubmissionOf !== null && !isPaipaUuid(input.resubmissionOf)) {
+    throw new Error("Invalid resubmission identity");
+  }
 
   const canonicalPayload = JSON.stringify({
     tripId: input.tripId.toLowerCase(),
@@ -115,6 +119,7 @@ export function buildPaymentRequestHash(input: PaymentRequestHashInput): string 
     paymentOccurredAt,
     note: input.note.normalize("NFC").trim(),
     proofDigest: input.proofDigest,
+    ...(input.resubmissionOf ? { resubmissionOf: input.resubmissionOf.toLowerCase() } : {}),
   });
   return createHash("sha256").update(canonicalPayload, "utf8").digest("hex");
 }

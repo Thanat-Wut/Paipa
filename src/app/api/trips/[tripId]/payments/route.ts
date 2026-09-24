@@ -21,6 +21,7 @@ const ALLOWED_FIELDS = new Set([
   "paymentOccurredAt",
   "note",
   "proof",
+  "resubmissionOf",
 ]);
 
 export const runtime = "nodejs";
@@ -37,6 +38,7 @@ type PaymentSubmissionRow = {
   proof_path: string | null;
   note: string;
   status: "pending" | "verified" | "rejected";
+  resubmission_of: string | null;
   created_at: string;
 };
 
@@ -83,6 +85,7 @@ function parsePaymentForm(form: FormData) {
   const occurredAtInput = getOne("paymentOccurredAt", true);
   const noteInput = getOne("note", false);
   const proofInput = getOne("proof", false);
+  const resubmissionOfInput = getOne("resubmissionOf", false);
 
   if (typeof clientRequestId !== "string" || !isPaipaUuid(clientRequestId)) return null;
   if (typeof amountInput !== "string") return null;
@@ -90,6 +93,9 @@ function parsePaymentForm(form: FormData) {
   if (typeof occurredAtInput !== "string") return null;
   if (noteInput !== null && typeof noteInput !== "string") return null;
   if (proofInput !== null && !(proofInput instanceof File)) return null;
+  if (resubmissionOfInput !== null && (typeof resubmissionOfInput !== "string" || !isPaipaUuid(resubmissionOfInput))) {
+    return null;
+  }
 
   const amount = normalizePaymentAmount(amountInput);
   const paymentOccurredAt = normalizePaymentOccurredAt(occurredAtInput);
@@ -107,6 +113,7 @@ function parsePaymentForm(form: FormData) {
     paymentOccurredAt,
     note,
     proof,
+    resubmissionOf: typeof resubmissionOfInput === "string" ? resubmissionOfInput.toLowerCase() : null,
   };
 }
 
@@ -135,9 +142,29 @@ async function findExistingSubmission(
     .maybeSingle();
 }
 
-function idempotencyResponse(row: PaymentSubmissionRow, requestHash: string) {
-  if (row.request_hash !== requestHash) return jsonError(409, "IDEMPOTENCY_CONFLICT");
+function idempotencyResponse(
+  row: PaymentSubmissionRow,
+  requestHash: string,
+  resubmissionOf: string | null,
+) {
+  if (row.request_hash !== requestHash || (row.resubmission_of ?? null) !== resubmissionOf) {
+    return jsonError(409, "IDEMPOTENCY_CONFLICT");
+  }
   return submissionResponse(row, true);
+}
+
+function mapResubmissionInsertError(error: { code?: string; message: string }) {
+  switch (`${error.code ?? ""}:${error.message}`) {
+    case "23503:RESUBMISSION_PARENT_NOT_FOUND":
+      return { status: 404, code: "PAYMENT_NOT_FOUND" };
+    case "23514:RESUBMISSION_PARENT_NOT_REJECTED":
+      return { status: 409, code: "PAYMENT_NOT_RESUBMITTABLE" };
+    case "42501:RESUBMISSION_MEMBER_REQUIRED":
+    case "55000:RESUBMISSION_TRIP_ARCHIVED":
+      return { status: 404, code: "TRIP_NOT_FOUND" };
+    default:
+      return null;
+  }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ tripId: string }> }) {
@@ -164,6 +191,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     return jsonError(503, "PAYMENT_SERVICE_UNAVAILABLE");
   }
 
+  let proofBytes: Uint8Array | null = null;
+  let proofInfo: ReturnType<typeof inspectPaymentProof> = null;
+  if (input.proof) {
+    proofBytes = new Uint8Array(await input.proof.arrayBuffer());
+    proofInfo = inspectPaymentProof(proofBytes);
+    if (!proofInfo) return jsonError(400, "VALIDATION_ERROR");
+  }
+
+  const requestHash = buildPaymentRequestHash({
+    tripId,
+    contributorId: identity.id,
+    amount: input.amount,
+    paymentMethod: input.paymentMethod,
+    paymentOccurredAt: input.paymentOccurredAt,
+    note: input.note,
+    proofDigest: proofInfo?.sha256 ?? null,
+    resubmissionOf: input.resubmissionOf,
+  });
+
+  const { data: existing, error: lookupError } = await findExistingSubmission(
+    supabase,
+    tripId,
+    identity.id,
+    input.clientRequestId,
+  );
+  if (lookupError) return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
+  if (existing) {
+    return idempotencyResponse(existing as PaymentSubmissionRow, requestHash, input.resubmissionOf);
+  }
+
   const { data: trip, error: tripError } = await supabase
     .from("trips")
     .select("id, owner_id, status")
@@ -181,32 +238,43 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
   if (membershipError) return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
   if (!membership) return jsonError(404, "TRIP_NOT_FOUND");
 
-  let proofBytes: Uint8Array | null = null;
-  let proofInfo: ReturnType<typeof inspectPaymentProof> = null;
-  if (input.proof) {
-    proofBytes = new Uint8Array(await input.proof.arrayBuffer());
-    proofInfo = inspectPaymentProof(proofBytes);
-    if (!proofInfo) return jsonError(400, "VALIDATION_ERROR");
+  if (input.resubmissionOf) {
+    const { data: parent, error: parentError } = await supabase
+      .from("payment_submissions")
+      .select("id, trip_id, contributor_id, status")
+      .eq("trip_id", tripId)
+      .eq("contributor_id", identity.id)
+      .eq("id", input.resubmissionOf)
+      .maybeSingle();
+    if (parentError) return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
+    if (!parent) return jsonError(404, "PAYMENT_NOT_FOUND");
+    if (parent.status !== "rejected") return jsonError(409, "PAYMENT_NOT_RESUBMITTABLE");
   }
 
-  const requestHash = buildPaymentRequestHash({
-    tripId,
-    contributorId: identity.id,
-    amount: input.amount,
-    paymentMethod: input.paymentMethod,
-    paymentOccurredAt: input.paymentOccurredAt,
-    note: input.note,
-    proofDigest: proofInfo?.sha256 ?? null,
-  });
-
-  const { data: existing, error: lookupError } = await findExistingSubmission(
-    supabase,
-    tripId,
-    identity.id,
-    input.clientRequestId,
-  );
-  if (lookupError) return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
-  if (existing) return idempotencyResponse(existing as PaymentSubmissionRow, requestHash);
+  if (input.resubmissionOf) {
+    const { data: child, error: childError } = await supabase
+      .from("payment_submissions")
+      .select("id")
+      .eq("trip_id", tripId)
+      .eq("contributor_id", identity.id)
+      .eq("resubmission_of", input.resubmissionOf)
+      .maybeSingle();
+    if (childError) return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
+    if (child) {
+      // A matching same-key submission may have won after the first idempotency lookup.
+      const { data: retryWinner, error: retryLookupError } = await findExistingSubmission(
+        supabase,
+        tripId,
+        identity.id,
+        input.clientRequestId,
+      );
+      if (retryLookupError) return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
+      if (retryWinner) {
+        return idempotencyResponse(retryWinner as PaymentSubmissionRow, requestHash, input.resubmissionOf);
+      }
+      return jsonError(409, "PAYMENT_ALREADY_RESUBMITTED");
+    }
+  }
 
   const submissionId = randomUUID();
   const proofPath = proofInfo
@@ -243,6 +311,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
       proof_path: proofPath,
       note: input.note,
       status: "pending",
+      resubmission_of: input.resubmissionOf,
     })
     .select("*")
     .single();
@@ -261,10 +330,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
       input.clientRequestId,
     );
     if (winnerError) return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
-    if (winner) return idempotencyResponse(winner as PaymentSubmissionRow, requestHash);
+    if (winner) return idempotencyResponse(winner as PaymentSubmissionRow, requestHash, input.resubmissionOf);
+
+    if (input.resubmissionOf) {
+      const { data: child, error: childError } = await supabase
+        .from("payment_submissions")
+        .select("id")
+        .eq("trip_id", tripId)
+        .eq("contributor_id", identity.id)
+        .eq("resubmission_of", input.resubmissionOf)
+        .maybeSingle();
+      if (childError) return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
+      if (child) return jsonError(409, "PAYMENT_ALREADY_RESUBMITTED");
+    }
   }
 
   if (insertError) {
+    if (input.resubmissionOf) {
+      const resubmissionError = mapResubmissionInsertError(insertError);
+      if (resubmissionError) return jsonError(resubmissionError.status, resubmissionError.code);
+    }
     return Response.json({
       code: insertError.code ?? "PAYMENT_SUBMISSION_FAILED",
       message: insertError.message,

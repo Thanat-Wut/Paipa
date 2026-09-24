@@ -49,6 +49,28 @@ describe("M2.3 payment request normalization", () => {
     expect(normalizedRetry).toBe(first);
     expect(differentProof).not.toBe(first);
   });
+
+  it("preserves the M2.3 hash for ordinary submissions without a resubmission parent", () => {
+    const input = { ...request, amount: "3500.00", proofDigest: "a".repeat(64) };
+    const original = buildPaymentRequestHash(input);
+    const explicitNoParent = buildPaymentRequestHash({
+      ...input,
+      resubmissionOf: null,
+    } as typeof input & { resubmissionOf: null });
+
+    expect(explicitNoParent).toBe(original);
+  });
+
+  it("includes the rejected parent in the canonical hash only for resubmissions", () => {
+    const input = { ...request, amount: "3500.00", proofDigest: "a".repeat(64) };
+    const hashFor = (resubmissionOf: string) => buildPaymentRequestHash({
+      ...input,
+      resubmissionOf,
+    } as typeof input & { resubmissionOf: string });
+
+    expect(hashFor("c61c0258-57a4-4a1b-9f4d-4e44f4ab19d1"))
+      .not.toBe(hashFor("7e2f7f01-2c0f-4f65-96ef-7291b05736d3"));
+  });
 });
 
 describe("M2.3 private payment proof validation", () => {

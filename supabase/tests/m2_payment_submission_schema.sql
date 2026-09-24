@@ -254,7 +254,7 @@ begin
       id, trip_id, contributor_id, client_request_id, request_hash, amount,
       payment_method, payment_occurred_at, resubmission_of
     ) values (v_self_id, v_trip_a, v_member, gen_random_uuid(), repeat('f', 64), 1, 'cash', now(), v_self_id);
-  exception when check_violation then
+  exception when check_violation or foreign_key_violation then
     v_rejected := true;
   end;
   if not v_rejected then raise exception 'resubmission referenced itself'; end if;
