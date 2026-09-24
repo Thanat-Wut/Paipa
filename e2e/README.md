@@ -8,4 +8,6 @@ The M2.5 suite calls the real money summary and contribution Route Handlers with
 
 The M2.7 suite creates verified and pending payments and active Trip Fund and personal expenses through the real APIs. It reads the Money Route Handler after creation, replacement, deletion, and a new expense that makes the available balance negative. Its cleanup checks the exact fixture rows and payment-proof, expense-receipt, signature, and avatar Storage paths.
 
+The M2.8 Money UI suite drives the complete responsive workspace in Chromium using fresh local identity UUIDs and real Supabase requests. It joins without a signature, confirms Going with a browser-drawn signature, uploads and reads payment proofs and expense receipts, verifies/rejects/resubmits payments, creates Trip Fund and personal expenses, checks a negative Available balance, replaces and soft-deletes an expense, and verifies unauthorized file reads are denied. Run it with `npm run test:e2e -- e2e/m2-money-ui.spec.ts`; the full `npm run test:e2e` command includes this flow.
+
 Fixture cleanup is scoped by each test's generated IDs and checks that its created rows and objects are gone.

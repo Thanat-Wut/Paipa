@@ -162,3 +162,107 @@ h1,h2,h3,p { margin-top:0; }
 .identity-card p { margin:0 0 23px; color:#8191a8; font-size:13px; line-height:1.7; }
 .identity-loading { padding:28px; border-radius:20px; background:white; color:#567598; box-shadow:0 12px 32px rgba(14,165,233,.12); }
 @media(max-width:560px) { .identity-card { padding:25px 20px; } }
+
+/* M2.8 Money workspace */
+.money-workspace { display:grid; gap:20px; }
+.money-panel { min-width:0; }
+.money-summary-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin:0; }
+.money-total { min-width:0; padding:16px; border:1px solid #e7eef8; border-radius:18px; background:linear-gradient(145deg,#fff,#f8fcff); }
+.money-total dt { display:grid; gap:3px; color:#7890aa; font-size:12px; font-weight:800; }
+.money-total dt small { color:#a1adbd; font-size:10px; font-weight:500; }
+.money-total dd { margin:12px 0 0; color:#334d70; font-size:clamp(16px,2vw,23px); font-weight:900; overflow-wrap:anywhere; }
+.money-total-collected dd,.money-total-available dd { color:#20805e; }
+.money-total-available dd { font-size:clamp(19px,2.4vw,28px); }
+.money-total-spent dd { color:#b56d3c; }
+.money-contributions-layout { display:grid; grid-template-columns:minmax(260px,.72fr) minmax(0,1.28fr); gap:20px; align-items:start; }
+.money-contribution-values { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:16px 0 0; }
+.money-contribution-values>div { min-width:0; display:grid; gap:5px; padding:10px; border-radius:12px; background:#f7faff; }
+.money-contribution-values dt { color:#91a0b5; font-size:10px; font-weight:700; }
+.money-contribution-values dd { margin:0; color:#405876; font-size:12px; font-weight:900; overflow-wrap:anywhere; }
+.money-contribution-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.money-contribution-heading>div { min-width:0; display:grid; gap:3px; }
+.money-contribution-heading strong { color:#415a78; font-size:14px; overflow-wrap:anywhere; }
+.money-contribution-heading small { color:#a0adbd; font-size:10px; }
+.money-contribution-list { display:grid; gap:12px; }
+.money-contribution-card { padding:15px; border:1px solid #e8eef7; border-radius:16px; background:#fff; }
+.money-status { display:inline-flex; flex:none; padding:6px 10px; border-radius:999px; background:#eef6ff; color:#5480b2; font-size:10px; font-weight:900; }
+.money-status-paid { background:#e9f8ef; color:#438a63; }
+.money-status-partial,.money-status-pending { background:#fff5d8; color:#9d7b2e; }
+.money-status-unpaid { background:#fff0f2; color:#b05d72; }
+.money-empty { margin:0; color:#94a4bb; font-size:13px; line-height:1.7; }
+.money-error-copy { color:#9a5661; }
+@media(max-width:1050px) {
+  .money-summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .money-contributions-layout { grid-template-columns:1fr; }
+}
+@media(max-width:560px) {
+  .money-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .money-total { padding:13px; }
+  .money-total:last-child { grid-column:span 2; }
+  .money-contribution-values { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .money-contribution-card { padding:12px; }
+}
+
+.money-payment-layout { display:grid; grid-template-columns:minmax(290px,.78fr) minmax(0,1.22fr); gap:20px; align-items:start; }
+.money-payment-list { display:grid; gap:12px; }
+.money-payment-card { min-width:0; padding:16px; border:1px solid #e8eef7; border-radius:17px; background:#fff; }
+.money-payment-card-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.money-payment-card-heading h3 { margin:0 0 4px; color:#526985; font-size:13px; }
+.money-payment-card-heading strong { color:#344e70; font-size:20px; overflow-wrap:anywhere; }
+.money-payment-status-verified { background:#e9f8ef; color:#438a63; }
+.money-payment-status-rejected { background:#fff0f2; color:#b05d72; }
+.money-payment-meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:14px 0; }
+.money-payment-meta>div { display:grid; gap:3px; }
+.money-payment-meta dt { color:#9aa8ba; font-size:10px; }
+.money-payment-meta dd { margin:0; color:#617893; font-size:11px; overflow-wrap:anywhere; }
+.money-payment-note,.money-rejection-reason { margin:10px 0; color:#71829a; font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.money-rejection-reason { color:#ab5c6a; padding:10px; background:#fff5f6; border-radius:10px; }
+.money-payment-actions,.money-form-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+.money-reject-box { display:grid; gap:9px; margin-top:13px; padding-top:13px; border-top:1px solid #eef2f8; }
+.money-field { display:grid; gap:6px; margin:11px 0; color:#71829a; font-size:11px; font-weight:800; }
+.money-field input,.money-field select,.money-field textarea { width:100%; min-width:0; padding:10px 12px; border:1px solid #dce7f3; border-radius:11px; background:#fbfdff; color:#344e70; font:inherit; font-size:13px; }
+.money-field input[type=file] { padding:8px; font-size:11px; }
+.money-field input:focus,.money-field select:focus,.money-field textarea:focus { outline:3px solid #bae6fd; border-color:#38bdf8; }
+.money-field fieldset,.money-payment-form-panel fieldset { min-width:0; margin:0; padding:0; border:0; }
+.money-form-error,.money-form-success,.money-archive-note { margin:10px 0; padding:10px 12px; border-radius:11px; font-size:12px; line-height:1.6; }
+.money-form-error { color:#a84d5c; background:#fff0f2; }
+.money-form-success { color:#3f805e; background:#eaf8ef; }
+.money-archive-note { color:#8d6d26; background:#fff7df; }
+.money-payment-form-panel form { display:grid; gap:6px; }
+.money-payment-form-panel fieldset:disabled { opacity:.72; }
+@media(max-width:900px) { .money-payment-layout { grid-template-columns:1fr; } }
+@media(max-width:560px) {
+  .money-payment-card { padding:13px; }
+  .money-payment-meta { grid-template-columns:1fr 1fr; gap:8px; }
+  .money-payment-actions .button { flex:1 1 auto; }
+  .money-form-actions .button { width:100%; }
+}
+
+.money-expense-layout { display:grid; grid-template-columns:minmax(290px,.78fr) minmax(0,1.22fr); gap:20px; align-items:start; }
+.money-expense-list { display:grid; gap:12px; }
+.money-expense-card { min-width:0; padding:16px; border:1px solid #e8eef7; border-radius:17px; background:#fff; }
+.money-route-loading { min-width:0; }
+.money-loading-summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }
+.money-loading-total { display:grid; gap:14px; min-width:0; padding:16px; border:1px solid #e7eef8; border-radius:18px; background:#fbfdff; }
+.money-loading-placeholder { display:block; max-width:100%; border-radius:999px; background:linear-gradient(90deg,#edf3fa 25%,#f7faff 50%,#edf3fa 75%); background-size:200% 100%; animation:money-loading-shimmer 1.6s ease-in-out infinite; }
+.money-loading-label { width:56%; height:11px; }
+.money-loading-value { width:78%; height:24px; }
+@keyframes money-loading-shimmer { to { background-position-x:-200%; } }
+@media(max-width:1050px) { .money-loading-summary { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:560px) { .money-loading-summary { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }.money-loading-total { padding:13px; }.money-loading-total:last-child { grid-column:span 2; } }
+.money-expense-heading { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; }
+.money-expense-heading h3 { margin:0 0 4px; color:#526985; font-size:14px; }
+.money-expense-heading span { color:#98a7ba; font-size:10px; }
+.money-expense-heading>strong { color:#344e70; font-size:20px; overflow-wrap:anywhere; }
+.money-expense-meta { display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
+.money-expense-meta span,.money-personal-only { padding:6px 9px; border-radius:999px; background:#eef6ff; color:#6784a7; font-size:10px; font-weight:800; }
+.money-personal-only { display:inline-flex; }
+.money-expense-description { margin:12px 0; color:#71829a; font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.money-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.money-expense-form form { display:grid; gap:6px; }
+.money-expense-form fieldset:disabled { opacity:.72; }
+@media(max-width:900px) { .money-expense-layout { grid-template-columns:1fr; } }
+@media(max-width:560px) {
+  .money-expense-card { padding:13px; }
+  .money-form-grid { grid-template-columns:1fr; gap:0; }
+}

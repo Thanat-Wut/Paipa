@@ -357,3 +357,115 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
   }
   return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
 }
+
+type PaymentHistoryRow = {
+  id: string;
+  trip_id: string;
+  contributor_id: string;
+  amount: string | number;
+  payment_method: PaymentMethod;
+  payment_occurred_at: string;
+  created_at: string;
+  verified_at: string | null;
+  rejected_at: string | null;
+  note: string;
+  status: "pending" | "verified" | "rejected";
+  rejection_reason: string | null;
+  resubmission_of: string | null;
+  proof_path: string | null;
+};
+
+const PAYMENT_HISTORY_HEADERS = { "Cache-Control": "private, no-store" };
+
+function paymentHistoryError(status: number, code: string) {
+  return Response.json({ code }, { status, headers: PAYMENT_HISTORY_HEADERS });
+}
+
+export async function GET(_request: Request, { params }: { params: Promise<{ tripId: string }> }) {
+  const { tripId: rawTripId } = await params;
+  if (!isPaipaUuid(rawTripId)) return paymentHistoryError(404, "TRIP_NOT_FOUND");
+  const tripId = rawTripId.toLowerCase();
+
+  let identity;
+  try {
+    identity = await getOptionalIdentity();
+  } catch {
+    return paymentHistoryError(503, "PAYMENT_HISTORY_UNAVAILABLE");
+  }
+  if (!identity) return paymentHistoryError(401, "IDENTITY_REQUIRED");
+
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch {
+    return paymentHistoryError(503, "PAYMENT_HISTORY_UNAVAILABLE");
+  }
+
+  try {
+    const { data: trip, error: tripError } = await supabase
+      .from("trips")
+      .select("id, owner_id")
+      .eq("id", tripId)
+      .maybeSingle();
+    if (tripError) return paymentHistoryError(500, "PAYMENT_HISTORY_FAILED");
+    if (!trip) return paymentHistoryError(404, "TRIP_NOT_FOUND");
+
+    const isOwner = trip.owner_id === identity.id;
+    if (!isOwner) {
+      const { data: membership, error: membershipError } = await supabase
+        .from("trip_members")
+        .select("user_id")
+        .eq("trip_id", tripId)
+        .eq("user_id", identity.id)
+        .maybeSingle();
+      if (membershipError) return paymentHistoryError(500, "PAYMENT_HISTORY_FAILED");
+      if (!membership) return paymentHistoryError(404, "TRIP_NOT_FOUND");
+    }
+
+    let paymentQuery = supabase
+      .from("payment_submissions")
+      .select("id, trip_id, contributor_id, amount, payment_method, payment_occurred_at, created_at, verified_at, rejected_at, note, status, rejection_reason, resubmission_of, proof_path")
+      .eq("trip_id", tripId);
+    if (!isOwner) paymentQuery = paymentQuery.eq("contributor_id", identity.id);
+    const { data: rawPayments, error: paymentError } = await paymentQuery.order("created_at", { ascending: false });
+    if (paymentError || !Array.isArray(rawPayments)) return paymentHistoryError(500, "PAYMENT_HISTORY_FAILED");
+
+    const paymentRows = rawPayments as PaymentHistoryRow[];
+    const contributorIds = [...new Set(paymentRows.map((row) => row.contributor_id))];
+    let profiles: Array<{ id: string; display_name: string }> = [];
+    if (contributorIds.length > 0) {
+      const { data: profileRows, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", contributorIds);
+      if (profilesError || !Array.isArray(profileRows)) return paymentHistoryError(500, "PAYMENT_HISTORY_FAILED");
+      profiles = profileRows as typeof profiles;
+    }
+
+    const displayNames = new Map(profiles.map((profile) => [profile.id, profile.display_name]));
+    const payments = paymentRows.map((row) => {
+      const amount = normalizePaymentAmount(String(row.amount));
+      if (!amount) return null;
+      return {
+        id: row.id,
+        contributorId: row.contributor_id,
+        contributorName: displayNames.get(row.contributor_id) ?? "Trip member",
+        amount,
+        paymentMethod: row.payment_method,
+        paymentOccurredAt: row.payment_occurred_at,
+        createdAt: row.created_at,
+        verifiedAt: row.verified_at,
+        rejectedAt: row.rejected_at,
+        note: row.note,
+        status: row.status,
+        rejectionReason: row.rejection_reason,
+        resubmissionOf: row.resubmission_of,
+        proofAvailable: Boolean(row.proof_path),
+      };
+    });
+    if (payments.some((payment) => payment === null)) return paymentHistoryError(500, "PAYMENT_HISTORY_FAILED");
+    return Response.json({ payments }, { headers: PAYMENT_HISTORY_HEADERS });
+  } catch {
+    return paymentHistoryError(500, "PAYMENT_HISTORY_FAILED");
+  }
+}

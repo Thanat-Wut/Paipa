@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { isPaipaUuid } from "@/lib/identity";
+import { MAX_PAYMENT_PROOF_BYTES } from "./upload-limits";
+export { MAX_PAYMENT_PROOF_BYTES };
 
 export const MAX_PAYMENT_AMOUNT_CENTS = BigInt("10000000000");
-export const MAX_PAYMENT_PROOF_BYTES = 10 * 1024 * 1024;
 
 export type PaymentMethod = "bank_transfer" | "cash" | "other";
 export type PaymentProofExtension = "png" | "jpg" | "webp" | "pdf";
