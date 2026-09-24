@@ -114,6 +114,8 @@ begin
     'expected', '7000.00',
     'pending', '2000.00',
     'collected', '5000.00',
+    'spent', '0.00',
+    'available', '5000.00',
     'goingCount', 2
   ) then
     raise exception '3500 summary mismatch: %', v_summary;
@@ -160,7 +162,8 @@ begin
 
   if public.get_trip_money_summary(v_owner, v_trip_empty) is distinct from jsonb_build_object(
        'currency', 'THB', 'budgetPerPerson', '50.00', 'expected', '0.00',
-       'pending', '0.00', 'collected', '0.00', 'goingCount', 0
+       'pending', '0.00', 'collected', '0.00', 'spent', '0.00',
+       'available', '0.00', 'goingCount', 0
      )
      or public.get_trip_member_contributions(v_owner, v_trip_empty) is distinct from '[]'::jsonb then
     raise exception 'empty trip did not return zero totals and an empty member list';
