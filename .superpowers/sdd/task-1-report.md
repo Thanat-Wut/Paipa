@@ -52,3 +52,9 @@ The result was `Aggregate` over `Seq Scan on expenses e`, filtering by `trip_id`
 - The authorized trip CTE and grants remain unchanged, and the function is still invoker security.
 - No M2.5 or M2.6 applied migration was touched. The only existing test edit was necessary because its exact JSON assertions had to account for the additive keys.
 - Concern: the measured test fixture is small; a future large data set may merit another plan measurement. There is no current evidence for an additional index.
+
+## Fix verification
+
+Review found that the decimal exactness and negative-available comparisons used `<>`, which evaluates to null for a missing JSON key and can let an `IF` assertion pass. Changed all six comparisons in those two assertions to `IS DISTINCT FROM`, making missing keys fail.
+
+Reran the full rollback SQL file by reading it client-side with `Get-Content supabase/tests/m2_money_spent_available.sql -Raw` and calling `supabase_execute_sql(project_id='ltkqcjtdzlbtyqwurynp', query=<full file contents>)`. The file read exited 0; Supabase returned `isError: false` and `result: []` with no exception. No production SQL or other tests changed in this fix.

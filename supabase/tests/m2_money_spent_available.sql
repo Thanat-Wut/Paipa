@@ -94,8 +94,9 @@ begin
   end if;
 
   v_summary := public.get_trip_money_summary(v_owner, v_decimal);
-  if v_summary ->> 'collected' <> '0.30' or v_summary ->> 'spent' <> '0.15'
-     or v_summary ->> 'available' <> '0.15' then
+  if v_summary ->> 'collected' is distinct from '0.30'
+     or v_summary ->> 'spent' is distinct from '0.15'
+     or v_summary ->> 'available' is distinct from '0.15' then
     raise exception 'exact 0.10 + 0.20 - 0.15 failed: %', v_summary;
   end if;
   execute 'reset role';
@@ -107,8 +108,9 @@ begin
             now(), gen_random_uuid(), repeat('8',64));
   execute 'set local role service_role';
   v_summary := public.get_trip_money_summary(v_owner, v_trip);
-  if v_summary ->> 'collected' <> '25.00' or v_summary ->> 'spent' <> '26.00'
-     or v_summary ->> 'available' <> '-1.00' then
+  if v_summary ->> 'collected' is distinct from '25.00'
+     or v_summary ->> 'spent' is distinct from '26.00'
+     or v_summary ->> 'available' is distinct from '-1.00' then
     raise exception 'negative available was clamped or misstated: %', v_summary;
   end if;
   execute 'reset role';
