@@ -2,10 +2,11 @@
 
 import { ArrowDown, ArrowUp, Heart, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { MemberAvatar } from "@/components/ui";
 import { BOARD_NOTE_COLORS, type BoardNote, type BoardNoteColor, type BoardResponse } from "@/lib/board";
 
-type BoardWorkspaceProps = { tripId: string; currentUserId: string; ownerId: string; isArchived: boolean };
+type BoardWorkspaceProps = { tripId: string; currentUserId: string; ownerId: string; isArchived: boolean; focusNoteId?: string | null };
 type Resource = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: BoardResponse };
 type FormState = { title: string; content: string; color: BoardNoteColor };
 
@@ -98,17 +99,17 @@ function NoteCard({ note, currentUserId, ownerId, tripId, isArchived, first, las
     catch (reason) { setError(reason instanceof Error ? reason.message : "ทำรายการไม่สำเร็จ"); }
     finally { setBusy(false); }
   }
-  return <article className={`board-note board-note-${note.color}`}>
+  return <article className={`board-note board-note-${note.color}`} data-note-id={note.id}>
     <div className="board-note-tape" aria-hidden="true"/>
     <header className="board-note-header"><div className="board-note-author"><MemberAvatar name={note.authorName} url={note.authorAvatarUrl}/><span><strong>{note.authorName}</strong><small>{noteDate(note.createdAt)}</small></span></div><span className="board-note-color">{COLOR_LABELS[note.color]}</span></header>
     <h3>{note.title}</h3><p className="board-note-content">{note.content || "ไอเดียสั้น ๆ จากเพื่อน"}</p>
     <div className="board-note-actions"><button className={`board-like-button ${note.likedByMe ? "liked" : ""}`} type="button" aria-label={note.likedByMe ? `เลิกถูกใจ ${note.title}` : `ถูกใจ ${note.title}`} disabled={busy || isArchived} onClick={() => void mutate(`/api/trips/${tripId}/board/notes/${note.id}/like`, { method: "POST" })}><Heart size={16} fill={note.likedByMe ? "currentColor" : "none"}/><span>{note.likeCount}</span></button><span className="board-comment-count"><MessageCircle size={16}/>{note.comments.length}</span><span className="board-note-spacer"/>{canEdit && <button className="icon-button" type="button" aria-label={`แก้ไข ${note.title}`} disabled={busy || isArchived} onClick={() => onEdit(note)}><Pencil size={15}/></button>}{canDelete && <button className="icon-button danger" type="button" aria-label={`ลบ ${note.title}`} disabled={busy || isArchived} onClick={() => void mutate(`/api/trips/${tripId}/board/notes/${note.id}`, { method: "DELETE" })}><Trash2 size={15}/></button>}</div>
-    <div className="board-note-order"><button className="text-button" type="button" disabled={busy || isArchived || first} onClick={() => void mutate(`/api/trips/${tripId}/board/order`, { method: "POST", body: JSON.stringify({ noteId: note.id, direction: "up" }) })}><ArrowUp size={13}/> ขึ้น</button><button className="text-button" type="button" disabled={busy || isArchived || last} onClick={() => void mutate(`/api/trips/${tripId}/board/order`, { method: "POST", body: JSON.stringify({ noteId: note.id, direction: "down" }) })}><ArrowDown size={13}/> ลง</button></div>
+    <div className="board-note-order"><Link className="text-button" href={`/trips/${tripId}/chat?note=${note.id}`}><MessageCircle size={13}/> คุยเรื่องนี้</Link><span className="board-note-spacer"/><button className="text-button" type="button" disabled={busy || isArchived || first} onClick={() => void mutate(`/api/trips/${tripId}/board/order`, { method: "POST", body: JSON.stringify({ noteId: note.id, direction: "up" }) })}><ArrowUp size={13}/> ขึ้น</button><button className="text-button" type="button" disabled={busy || isArchived || last} onClick={() => void mutate(`/api/trips/${tripId}/board/order`, { method: "POST", body: JSON.stringify({ noteId: note.id, direction: "down" }) })}><ArrowDown size={13}/> ลง</button></div>
     <CommentList note={note} currentUserId={currentUserId} ownerId={ownerId} tripId={tripId} disabled={isArchived || busy} onChanged={onChanged}/>{error && <p className="board-error" role="alert">{error}</p>}
   </article>;
 }
 
-export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived }: BoardWorkspaceProps) {
+export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived, focusNoteId = null }: BoardWorkspaceProps) {
   const [resource, setResource] = useState<Resource>({ status: "loading" });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<BoardNote | null>(null);
@@ -127,6 +128,15 @@ export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived }: B
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+  useEffect(() => {
+    if (resource.status !== "ready" || !focusNoteId) return;
+    const note = Array.from(document.querySelectorAll<HTMLElement>("[data-note-id]")).find((element) => element.dataset.noteId === focusNoteId);
+    if (!note) return;
+    note.scrollIntoView({ behavior: "smooth", block: "center" });
+    note.classList.add("board-note-focus");
+    const timer = window.setTimeout(() => note.classList.remove("board-note-focus"), 1800);
+    return () => window.clearTimeout(timer);
+  }, [resource, focusNoteId]);
 
   async function saveNote(input: FormState) {
     setPageError("");
