@@ -7,7 +7,7 @@ import { encodeSse, projectRealtimeEvent, REALTIME_SSE_HEADERS, type RealtimeEve
 
 export const runtime = "nodejs";
 
-type RealtimeScope = "board" | "chat";
+type RealtimeScope = "board" | "chat" | "polls";
 
 function errorResponse(status: number, code: string) {
   return Response.json({ code }, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -15,7 +15,7 @@ function errorResponse(status: number, code: string) {
 
 function requestedScope(request: Request): RealtimeScope | null {
   const scope = new URL(request.url).searchParams.get("scope");
-  return scope === "board" || scope === "chat" ? scope : null;
+  return scope === "board" || scope === "chat" || scope === "polls" ? scope : null;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ tripId: string }> }) {
@@ -49,6 +49,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
       let closed = false;
       const knownNoteIds = new Set<string>();
       const knownMessageIds = new Set<string>();
+      const knownPollIds = new Set<string>();
+      const knownOptionPollIds = new Map<string, string>();
+      // A profile can vote in multiple Polls; key vote cache entries by the
+      // composite row identity rather than profile_id alone.
+      const knownVotePollIds = new Map<string, string>();
       const enqueue = (value: unknown) => {
         if (closed || cleaned) return;
         try { controller.enqueue(encoder.encode(encodeSse(value))); }
@@ -58,6 +63,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
       const lookupNote = async (noteId: string) => {
         if (knownNoteIds.has(noteId)) return { trip_id: tripId };
         const { data, error } = await access.supabase.from("board_notes").select("trip_id").eq("id", noteId).maybeSingle();
+        return error || !data ? null : { trip_id: data.trip_id as string };
+      };
+
+      const lookupPoll = async (pollId: string) => {
+        if (knownPollIds.has(pollId)) return { trip_id: tripId };
+        const { data, error } = await access.supabase.from("polls").select("trip_id").eq("id", pollId).maybeSingle();
         return error || !data ? null : { trip_id: data.trip_id as string };
       };
 
@@ -86,8 +97,35 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
           } else if (messageId) {
             knownMessageIds.add(messageId);
           }
+        } else if (payload.table === "polls") {
+          const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+          const pollId = typeof row.id === "string" ? row.id : null;
+          if (payload.eventType === "DELETE") {
+            if (!pollId || !knownPollIds.has(pollId)) return;
+            payload = { ...payload, old: { ...payload.old, trip_id: tripId } };
+            knownPollIds.delete(pollId);
+          } else if (pollId) {
+            knownPollIds.add(pollId);
+          }
+        } else if (payload.table === "poll_options" || payload.table === "poll_votes") {
+          const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+          const recordId = payload.table === "poll_options"
+            ? (typeof row.id === "string" ? row.id : null)
+            : (typeof row.poll_id === "string" && typeof row.profile_id === "string"
+              ? `${row.poll_id}:${row.profile_id}`
+              : null);
+          const cache = payload.table === "poll_options" ? knownOptionPollIds : knownVotePollIds;
+          let pollId = typeof row.poll_id === "string" ? row.poll_id : null;
+          if (!pollId && recordId) pollId = cache.get(recordId) ?? null;
+          if (!recordId || !pollId || !knownPollIds.has(pollId)) return;
+          if (payload.eventType === "DELETE") {
+            cache.delete(recordId);
+            payload = { ...payload, old: { ...payload.old, poll_id: pollId } };
+          } else {
+            cache.set(recordId, pollId);
+          }
         }
-        void projectRealtimeEvent(payload, tripId, scope === "board" ? lookupNote : undefined).then((event) => {
+        void projectRealtimeEvent(payload, tripId, scope === "board" ? lookupNote : undefined, scope === "polls" ? lookupPoll : undefined).then((event) => {
           if (event) enqueue(event);
         }).catch(() => undefined);
       };
@@ -106,7 +144,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
         listen("board_notes", "DELETE");
         listen("board_note_likes", "*");
         listen("board_note_comments", "*");
-      } else {
+      } else if (scope === "chat") {
         const loadKnownMessages = access.supabase.from("chat_messages").select("id").eq("trip_id", tripId);
         void loadKnownMessages.then(({ data }) => {
           for (const row of data ?? []) if (typeof row.id === "string") knownMessageIds.add(row.id);
@@ -114,6 +152,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
         listen("chat_messages", "INSERT", `trip_id=eq.${tripId}`);
         listen("chat_messages", "UPDATE", `trip_id=eq.${tripId}`);
         listen("chat_messages", "DELETE");
+      }
+      if (scope === "polls") {
+        const loadKnownPolls = async () => {
+          const { data } = await access.supabase.from("polls").select("id").eq("trip_id", tripId);
+          for (const row of data ?? []) if (typeof row.id === "string") knownPollIds.add(row.id);
+          const pollIds = [...knownPollIds];
+          if (!pollIds.length) return;
+          const [{ data: optionRows }, { data: voteRows }] = await Promise.all([
+            access.supabase.from("poll_options").select("id, poll_id").in("poll_id", pollIds),
+            access.supabase.from("poll_votes").select("profile_id, poll_id").in("poll_id", pollIds),
+          ]);
+          for (const row of optionRows ?? []) if (typeof row.id === "string" && typeof row.poll_id === "string") knownOptionPollIds.set(row.id, row.poll_id);
+          for (const row of voteRows ?? []) if (typeof row.profile_id === "string" && typeof row.poll_id === "string") knownVotePollIds.set(`${row.poll_id}:${row.profile_id}`, row.poll_id);
+        };
+        void loadKnownPolls();
+        listen("polls", "INSERT", `trip_id=eq.${tripId}`);
+        listen("polls", "UPDATE", `trip_id=eq.${tripId}`);
+        listen("polls", "DELETE");
+        listen("poll_options", "*");
+        listen("poll_votes", "*");
       }
       channel.subscribe((status) => {
         if (status !== "SUBSCRIBED") enqueue({ scope, status: String(status) });

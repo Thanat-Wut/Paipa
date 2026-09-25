@@ -14,9 +14,14 @@ vi.mock("server-only", () => ({}));
 const TRIP_ID = "c72d7c85-8be0-4f49-a8cc-22e172993e88";
 const ACTOR_ID = "c61c0258-57a4-4a1b-9f4d-4e44f4ab19d1";
 const CHAT_MESSAGE_ID = "2d66f9f8-1ae7-41e2-9993-5ec2d6ea0d3a";
+const POLL_ID = "52a9de93-48cb-49c2-a2bc-42bc8a9033f0";
 
 function request() {
   return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=chat`);
+}
+
+function pollRequest() {
+  return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=polls`);
 }
 
 describe("M3.3 realtime SSE route", () => {
@@ -30,11 +35,20 @@ describe("M3.3 realtime SSE route", () => {
   const supabase = {
     channel: vi.fn(() => channel),
     removeChannel,
-    from: vi.fn((table: string) => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(async () => ({ data: table === "chat_messages" ? [{ id: CHAT_MESSAGE_ID }] : [], error: null })),
-      })),
-    })),
+    from: vi.fn((table: string) => {
+      const rows = table === "chat_messages" ? [{ id: CHAT_MESSAGE_ID }]
+        : table === "polls" ? [{ id: POLL_ID }]
+        : table === "poll_options" ? [{ id: "1126b37d-7da7-43f6-a961-1a46ae2a2ec1", poll_id: POLL_ID }]
+        : table === "poll_votes" ? [{ profile_id: ACTOR_ID, poll_id: POLL_ID }]
+        : [];
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(async () => ({ data: rows, error: null })),
+          in: vi.fn(async () => ({ data: rows, error: null })),
+          maybeSingle: vi.fn(async () => ({ data: { trip_id: TRIP_ID }, error: null })),
+        })),
+      };
+    }),
   };
 
   beforeEach(() => {
@@ -87,6 +101,27 @@ describe("M3.3 realtime SSE route", () => {
     await Promise.resolve();
     const next = await reader?.read();
     expect(new TextDecoder().decode(next?.value)).toContain(`"entity":"message"`);
+    expect(new TextDecoder().decode(next?.value)).toContain(`"action":"delete"`);
+    await reader?.cancel();
+  });
+
+  it("opens only Poll listeners and scopes Poll DELETE payloads through the known Poll cache", async () => {
+    const { GET } = await import("@/app/api/trips/[tripId]/realtime/route");
+    const response = await GET(pollRequest(), { params: Promise.resolve({ tripId: TRIP_ID }) });
+    const reader = response.body?.getReader();
+    await reader?.read();
+    await Promise.resolve();
+    const tables = listeners.map(({ config }) => config.table);
+    expect(tables).toContain("polls");
+    expect(tables).toContain("poll_options");
+    expect(tables).toContain("poll_votes");
+    expect(tables).not.toContain("chat_messages");
+    const deleteListener = listeners.find(({ config }) => config.table === "polls" && config.event === "DELETE");
+    expect(deleteListener).toBeDefined();
+    deleteListener?.handler({ schema: "public", table: "polls", commit_timestamp: new Date().toISOString(), eventType: "DELETE", new: {}, old: { id: POLL_ID } });
+    await Promise.resolve();
+    const next = await reader?.read();
+    expect(new TextDecoder().decode(next?.value)).toContain(`"entity":"poll"`);
     expect(new TextDecoder().decode(next?.value)).toContain(`"action":"delete"`);
     await reader?.cancel();
   });

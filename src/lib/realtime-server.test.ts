@@ -6,6 +6,8 @@ const OTHER_TRIP_ID = "f5e3d3aa-931a-4d70-9fe9-5a8e1e4fc641";
 const NOTE_ID = "698cf99c-4eb8-4543-861b-e5c267e2da38";
 const LIKE_ID = "c61c0258-57a4-4a1b-9f4d-4e44f4ab19d1";
 const COMMENT_ID = "99486bbb-f070-4200-8ce4-45d6aa605540";
+const POLL_ID = "52a9de93-48cb-49c2-a2bc-42bc8a9033f0";
+const POLL_OPTION_ID = "1126b37d-7da7-43f6-a961-1a46ae2a2ec1";
 
 function payload(table: string, eventType: RealtimePayload["eventType"], next: Record<string, unknown>, old: Record<string, unknown> = {}): RealtimePayload {
   return { schema: "public", table, commit_timestamp: "2026-09-25T12:30:00.000Z", eventType, new: next, old };
@@ -35,5 +37,17 @@ describe("M3.3 realtime event projection", () => {
   it("projects Chat insert/delete events by their trip_id", async () => {
     await expect(projectRealtimeEvent(payload("chat_messages", "INSERT", { id: COMMENT_ID, trip_id: TRIP_ID }), TRIP_ID)).resolves.toEqual({ scope: "chat", entity: "message", action: "upsert", id: COMMENT_ID, tripId: TRIP_ID });
     await expect(projectRealtimeEvent(payload("chat_messages", "DELETE", {}, { id: COMMENT_ID, trip_id: TRIP_ID }), TRIP_ID)).resolves.toEqual({ scope: "chat", entity: "message", action: "delete", id: COMMENT_ID, tripId: TRIP_ID });
+  });
+
+  it("projects same-Trip Poll and relational events without exposing row contents", async () => {
+    const lookupPoll = async () => ({ trip_id: TRIP_ID });
+    await expect(projectRealtimeEvent(payload("polls", "INSERT", { id: POLL_ID, trip_id: TRIP_ID }), TRIP_ID)).resolves.toEqual({ scope: "polls", entity: "poll", action: "upsert", id: POLL_ID, tripId: TRIP_ID });
+    await expect(projectRealtimeEvent(payload("poll_options", "INSERT", { id: POLL_OPTION_ID, poll_id: POLL_ID, label: "secret" }), TRIP_ID, undefined, lookupPoll)).resolves.toEqual({ scope: "polls", entity: "option", action: "upsert", id: POLL_OPTION_ID, pollId: POLL_ID, tripId: TRIP_ID });
+    await expect(projectRealtimeEvent(payload("poll_votes", "DELETE", {}, { poll_id: POLL_ID, profile_id: LIKE_ID }), TRIP_ID, undefined, lookupPoll)).resolves.toEqual({ scope: "polls", entity: "vote", action: "delete", id: LIKE_ID, pollId: POLL_ID, tripId: TRIP_ID });
+  });
+
+  it("drops Poll relation events whose Poll lookup is outside the requested Trip", async () => {
+    const lookupPoll = async () => ({ trip_id: OTHER_TRIP_ID });
+    await expect(projectRealtimeEvent(payload("poll_options", "INSERT", { id: POLL_OPTION_ID, poll_id: POLL_ID }), TRIP_ID, undefined, lookupPoll)).resolves.toBeNull();
   });
 });
