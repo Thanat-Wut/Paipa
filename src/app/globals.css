@@ -204,6 +204,7 @@ h1,h2,h3,p { margin-top:0; }
 }
 
 .money-payment-layout { display:grid; grid-template-columns:minmax(290px,.78fr) minmax(0,1.22fr); gap:20px; align-items:start; }
+.money-payment-content { display:grid; gap:20px; min-width:0; }
 .money-payment-list { display:grid; gap:12px; }
 .money-payment-card { min-width:0; padding:16px; border:1px solid #e8eef7; border-radius:17px; background:#fff; }
 .money-payment-card-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }

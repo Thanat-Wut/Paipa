@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
-test.setTimeout(300_000);
+test.setTimeout(900_000);
 
 const PAYMENT_PROOF = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lxcAAAAASUVORK5CYII=",
@@ -9,6 +9,7 @@ const PAYMENT_PROOF = Buffer.from(
 );
 const BUCKETS = ["payment-proofs", "expense-receipts", "signatures", "avatars"] as const;
 const TODAY = new Date().toISOString().slice(0, 10);
+const PAYMENT_TIME = TODAY + "T14:30";
 
 type Identity = { id: string; displayName: string };
 function createAdmin(): SupabaseClient {
@@ -138,14 +139,43 @@ async function waitForCommitment(client: SupabaseClient, tripId: string, memberI
   return data!.signature_path as string;
 }
 
+async function finishPaymentSubmission(page: Page, form: Locator, buttonName: string) {
+  const tripId = new URL(page.url()).pathname.split("/")[2];
+  if (!tripId) throw new Error("Payment submission page is missing its trip ID.");
+  const responsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === "POST"
+      && url.pathname === "/api/trips/" + tripId + "/payments";
+  }, { timeout: 180_000 });
+  await form.getByRole("button", { name: buttonName }).click();
+  const response = await responsePromise;
+  expect(response.status()).toBe(201);
+  await expect(form.getByRole("status")).toContainText("ส่งรายการแล้ว", { timeout: 30_000 });
+}
+
 async function submitPayment(page: Page, amount: string, proofName: string, resubmission = false) {
   const form = page.locator(".money-payment-form-panel");
   await form.getByLabel("จำนวนเงิน").fill(amount);
-  await form.getByLabel("วันที่ชำระ").fill(TODAY);
+  await form.getByLabel("วันและเวลาที่ชำระ").fill(PAYMENT_TIME);
   await form.getByLabel("วิธีชำระ").selectOption("bank_transfer");
   await form.getByLabel("หลักฐานการชำระเงิน").setInputFiles({ name: proofName, mimeType: "image/png", buffer: PAYMENT_PROOF });
-  await form.getByRole("button", { name: resubmission ? "ส่งหลักฐานใหม่" : "ส่งรายการชำระ" }).click();
-  await expect(form.getByRole("status")).toContainText("ส่งรายการแล้ว");
+  await finishPaymentSubmission(page, form, resubmission ? "ส่งหลักฐานใหม่" : "ส่งรายการชำระ");
+}
+
+async function submitCashPayment(page: Page, amount: string) {
+  const form = page.locator(".money-payment-form-panel");
+  await form.getByLabel("จำนวนเงิน").fill(amount);
+  await form.getByLabel("วันและเวลาที่ชำระ").fill(PAYMENT_TIME);
+  await form.getByLabel("วิธีชำระ").selectOption("cash");
+  await finishPaymentSubmission(page, form, "ส่งรายการชำระ");
+}
+
+async function waitForApiResponse(page: Page, method: string, pathname: string) {
+  const response = await page.waitForResponse((candidate) => {
+    const url = new URL(candidate.url());
+    return candidate.request().method() === method && url.pathname === pathname;
+  }, { timeout: 180_000 });
+  expect(response.ok()).toBe(true);
 }
 
 async function expectSummary(page: Page, expected: { expected?: string; pending?: string; collected?: string; spent?: string; available?: string }) {
@@ -286,9 +316,11 @@ test("real M2.8 Money UI completes payment and expense lifecycles with Supabase"
       return !error && data?.length === 1 && data[0].status === "pending" ? data[0] : null;
     }).toMatchObject({ status: "pending", proof_path: expect.any(String) });
     const { data: firstPayments, error: firstPaymentsError } = await admin.from("payment_submissions")
-      .select("id,status,proof_path,amount").eq("trip_id", tripId!).eq("contributor_id", member.id).order("created_at");
+      .select("id,status,proof_path,amount,payment_occurred_at").eq("trip_id", tripId!).eq("contributor_id", member.id).order("created_at");
     expect(firstPaymentsError).toBeNull();
     const firstPayment = firstPayments![0];
+    const expectedPaymentOccurredAt = await memberPage.evaluate((value) => new Date(value).toISOString(), PAYMENT_TIME);
+    expect(Date.parse(firstPayment.payment_occurred_at)).toBe(Date.parse(expectedPaymentOccurredAt));
 
     await ownerPage.goto(moneyPath);
     await expectSummary(ownerPage, { expected: "3500.00", pending: "1000.00", collected: "0.00", spent: "0.00", available: "0.00" });
@@ -442,11 +474,117 @@ test("real M2.8 Money UI completes payment and expense lifecycles with Supabase"
     await ownerMobilePage.setViewportSize({ width: 390, height: 844 });
     await ownerMobilePage.goto(moneyPath);
     await expect(ownerMobilePage.locator(".bottom-nav").getByRole("link", { name: "Money" })).toBeVisible();
-    await expect(ownerMobilePage.locator(".money-payment-form-panel").getByRole("button", { name: "ส่งรายการชำระ" })).toBeEnabled();
-    await expect(ownerMobilePage.locator(".money-expense-form").getByRole("button", { name: "เพิ่มค่าใช้จ่าย" })).toBeEnabled();
-    await expectSummary(ownerMobilePage, { expected: "3500.00", pending: "200.00", collected: "1000.00", spent: "0.00", available: "1000.00" });
+    const mobileReviewQueue = ownerMobilePage.getByRole("region", { name: "คิวรายการรอตรวจสอบ" });
+    await expect(mobileReviewQueue).toBeVisible();
+    await expect(mobileReviewQueue.locator(".money-payment-card")).toHaveCount(1);
+    const mobileResubmissionCard = mobileReviewQueue.locator(".money-payment-card").filter({ hasText: "฿200" });
+    await expect(mobileResubmissionCard.getByRole("button", { name: "ยืนยันการชำระ" })).toBeEnabled();
+    await mobileResubmissionCard.getByRole("button", { name: "ยืนยันการชำระ" }).click();
+    await expect(ownerMobilePage.getByRole("status").filter({ hasText: "ยืนยันรายการแล้ว" })).toBeVisible({ timeout: 30_000 });
+    await expectSummary(ownerMobilePage, { expected: "3500.00", pending: "0.00", collected: "1200.00", spent: "0.00", available: "1200.00" });
+    await expect.poll(async () => {
+      const { data, error } = await admin.from("payment_submissions").select("status").eq("id", resubmittedPayment!.id).single();
+      return !error ? data?.status : null;
+    }).toBe("verified");
+
+    const memberMobilePage = await memberContext.newPage();
+    await memberMobilePage.setViewportSize({ width: 390, height: 844 });
+    await memberMobilePage.goto(moneyPath);
+    await expect(memberMobilePage.locator(".bottom-nav").getByRole("link", { name: "Money" })).toBeVisible();
+    await submitCashPayment(memberMobilePage, "50.25");
+    const { data: mobileCashRows, error: mobileCashError } = await admin.from("payment_submissions")
+      .select("id,status,proof_path,payment_occurred_at").eq("trip_id", tripId!).eq("contributor_id", member.id).eq("amount", "50.25");
+    expect(mobileCashError).toBeNull();
+    expect(mobileCashRows).toHaveLength(1);
+    const mobileCashPayment = mobileCashRows![0];
+    expect(mobileCashPayment).toMatchObject({ status: "pending", proof_path: null });
+    const mobilePaymentTime = await memberMobilePage.evaluate((value) => new Date(value).toISOString(), PAYMENT_TIME);
+    expect(Date.parse(mobileCashPayment.payment_occurred_at)).toBe(Date.parse(mobilePaymentTime));
+    await expect(memberMobilePage.locator(".money-payment-card").filter({ hasText: "฿50.25" })).toContainText("รอตรวจสอบ");
+    await expectSummary(memberMobilePage, { expected: "3500.00", pending: "50.25", collected: "1200.00", spent: "0.00", available: "1200.00" });
+
+    await ownerMobilePage.reload();
+    await expectSummary(ownerMobilePage, { expected: "3500.00", pending: "50.25", collected: "1200.00", spent: "0.00", available: "1200.00" });
+    const mobileCashCard = ownerMobilePage.getByRole("region", { name: "คิวรายการรอตรวจสอบ" })
+      .locator(".money-payment-card").filter({ hasText: "฿50.25" });
+    await expect(mobileCashCard).toBeVisible();
+    await mobileCashCard.getByRole("button", { name: "ยืนยันการชำระ" }).click();
+    await expect(ownerMobilePage.getByRole("status").filter({ hasText: "ยืนยันรายการแล้ว" })).toBeVisible({ timeout: 30_000 });
+    await expectSummary(ownerMobilePage, { expected: "3500.00", pending: "0.00", collected: "1250.25", spent: "0.00", available: "1250.25" });
+    await expect.poll(async () => {
+      const { data, error } = await admin.from("payment_submissions").select("status,verified_at")
+        .eq("id", mobileCashPayment.id).single();
+      return !error && data?.verified_at ? data.status : null;
+    }).toBe("verified");
+    await memberMobilePage.reload();
+    await expectSummary(memberMobilePage, { expected: "3500.00", pending: "0.00", collected: "1250.25", spent: "0.00", available: "1250.25" });
+
+    const mobileFundTitle = "M28 Mobile fuel";
+    const mobileReplacementTitle = "M28 Mobile fuel corrected";
+    const mobileExpenseForm = ownerMobilePage.locator(".money-expense-form");
+    await mobileExpenseForm.getByLabel("ชื่อรายการ").fill(mobileFundTitle);
+    await mobileExpenseForm.getByLabel("จำนวนเงิน").fill("40.75");
+    await mobileExpenseForm.getByLabel("วันที่จ่าย").fill(TODAY);
+    await mobileExpenseForm.getByLabel("หมวดหมู่").selectOption("transport");
+    await mobileExpenseForm.getByLabel("ใบเสร็จ").setInputFiles({ name: "mobile-fuel-receipt.png", mimeType: "image/png", buffer: PAYMENT_PROOF });
+    const mobileCreateResponse = waitForApiResponse(ownerMobilePage, "POST", "/api/trips/" + tripId + "/expenses");
+    await mobileExpenseForm.getByRole("button", { name: "เพิ่มค่าใช้จ่าย" }).click();
+    await mobileCreateResponse;
+    const mobileOriginalCard = ownerMobilePage.locator(".money-expense-card").filter({ hasText: mobileFundTitle });
+    await expect(mobileOriginalCard).toBeVisible({ timeout: 30_000 });
+    const mobileOldReceiptHref = await mobileOriginalCard.getByRole("link", { name: "ดูใบเสร็จ" }).getAttribute("href");
+    await expectSummary(ownerMobilePage, { expected: "3500.00", pending: "0.00", collected: "1250.25", spent: "40.75", available: "1209.50" });
+    const { data: mobileOriginalRows, error: mobileOriginalError } = await admin.from("expenses")
+      .select("id,title,amount,payment_source,receipt_path,deleted_at").eq("trip_id", tripId!).eq("title", mobileFundTitle);
+    expect(mobileOriginalError).toBeNull();
+    expect(mobileOriginalRows).toHaveLength(1);
+    const mobileOriginalExpense = mobileOriginalRows![0];
+    expect(mobileOriginalExpense).toMatchObject({ amount: 40.75, payment_source: "trip_fund" });
+    expect(mobileOriginalExpense.receipt_path).toBeTruthy();
+
+    await mobileOriginalCard.getByRole("button", { name: "แก้ไขค่าใช้จ่าย" }).click();
+    const mobileReplaceForm = ownerMobilePage.locator(".money-expense-form");
+    await mobileReplaceForm.getByLabel("ชื่อรายการ").fill(mobileReplacementTitle);
+    await mobileReplaceForm.getByLabel("จำนวนเงิน").fill("75.50");
+    await mobileReplaceForm.getByLabel("เหตุผลที่แก้รายการ").fill("แก้ยอดจากใบเสร็จ");
+    await mobileReplaceForm.getByLabel("ใบเสร็จ").setInputFiles({ name: "mobile-fuel-receipt-replacement.png", mimeType: "image/png", buffer: PAYMENT_PROOF });
+    const mobileReplaceResponse = waitForApiResponse(ownerMobilePage, "PATCH", "/api/trips/" + tripId + "/expenses/" + mobileOriginalExpense.id);
+    await mobileReplaceForm.getByRole("button", { name: "แทนที่รายการ" }).click();
+    await mobileReplaceResponse;
+    const mobileReplacementCard = ownerMobilePage.locator(".money-expense-card").filter({ hasText: mobileReplacementTitle });
+    await expect(mobileReplacementCard).toBeVisible({ timeout: 30_000 });
+    const mobileNewReceiptHref = await mobileReplacementCard.getByRole("link", { name: "ดูใบเสร็จ" }).getAttribute("href");
+    await fileResponse(ownerMobilePage, mobileOldReceiptHref!);
+    await fileResponse(ownerMobilePage, mobileNewReceiptHref!);
+    await expectSummary(ownerMobilePage, { expected: "3500.00", pending: "0.00", collected: "1250.25", spent: "75.50", available: "1174.75" });
+    const { data: mobileReplacementRows, error: mobileReplacementError } = await admin.from("expenses")
+      .select("id,title,amount,receipt_path,deleted_at,deleted_by,replaces_expense_id")
+      .eq("trip_id", tripId!).in("title", [mobileFundTitle, mobileReplacementTitle]);
+    expect(mobileReplacementError).toBeNull();
+    expect(mobileReplacementRows).toHaveLength(2);
+    const mobileReplacement = mobileReplacementRows!.find((row) => row.title === mobileReplacementTitle)!;
+    const mobileHistoricalExpense = mobileReplacementRows!.find((row) => row.id === mobileOriginalExpense.id)!;
+    expect(mobileHistoricalExpense.deleted_by).toBe(owner.id);
+    expect(mobileHistoricalExpense.deleted_at).toBeTruthy();
+    expect(mobileReplacement).toMatchObject({ amount: 75.5, replaces_expense_id: mobileOriginalExpense.id });
+
+    await mobileReplacementCard.getByRole("button", { name: "ลบค่าใช้จ่าย" }).click();
+    await mobileReplacementCard.getByLabel("เหตุผลที่ลบ").fill("ลบรายการมือถือทดสอบ");
+    const mobileDeleteResponse = waitForApiResponse(ownerMobilePage, "DELETE", "/api/trips/" + tripId + "/expenses/" + mobileReplacement.id);
+    await mobileReplacementCard.getByRole("button", { name: "ยืนยันลบรายการ" }).click();
+    await mobileDeleteResponse;
+    await expect(ownerMobilePage.locator(".money-expense-card").filter({ hasText: mobileReplacementTitle })).toHaveCount(0, { timeout: 30_000 });
+    await expect(ownerMobilePage.locator(".money-expense-card").filter({ hasText: personalTitle })).toBeVisible();
+    await fileResponse(ownerMobilePage, mobileNewReceiptHref!);
+    await expectSummary(ownerMobilePage, { expected: "3500.00", pending: "0.00", collected: "1250.25", spent: "0.00", available: "1250.25" });
+    const { data: mobileDeletedRow, error: mobileDeletedError } = await admin.from("expenses")
+      .select("deleted_at,deleted_by,delete_reason,receipt_path").eq("id", mobileReplacement.id).single();
+    expect(mobileDeletedError).toBeNull();
+    expect(mobileDeletedRow).toMatchObject({ deleted_by: owner.id, delete_reason: "ลบรายการมือถือทดสอบ", receipt_path: mobileReplacement.receipt_path });
+    expect(mobileDeletedRow!.deleted_at).toBeTruthy();
     expect(await ownerMobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
+    await memberMobilePage.close();
     await ownerMobilePage.close();
   } catch (error) {
     failure = error;

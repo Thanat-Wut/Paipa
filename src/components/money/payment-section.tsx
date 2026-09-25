@@ -123,18 +123,34 @@ export function PaymentSection({ tripId, currentUserId, isOwner, isArchived, res
   const rejectedParents = new Set(resource.status === "ready"
     ? resource.data.filter((payment) => payment.resubmissionOf).map((payment) => payment.resubmissionOf as string)
     : []);
+  const pendingReviewPayments = resource.status === "ready"
+    ? resource.data.filter((payment) => payment.status === "pending")
+    : [];
+  const historyPayments = resource.status === "ready"
+    ? isOwner ? resource.data.filter((payment) => payment.status !== "pending") : resource.data
+    : [];
 
   return <div className="money-payment-layout">
     <PaymentForm tripId={tripId} isArchived={isArchived} resubmissionOf={resubmissionOf} onSubmitted={onRefresh} onCancelResubmission={() => setResubmissionOf(null)} />
-    <section className="panel money-panel" aria-labelledby="money-payments-heading">
-      <div className="section-heading"><div><span className="eyebrow">PAYMENT HISTORY</span><h2 id="money-payments-heading">รายการชำระเงิน</h2></div>{isOwner && <span>เจ้าของทริปตรวจสอบได้</span>}</div>
-      {notice && <p role="status" className="money-form-success">{notice}</p>}
-      {actionError && <p role="alert" className="money-form-error">{actionError}</p>}
-      {resource.status === "loading" && <p role="status" aria-label="Payment history">กำลังโหลดรายการชำระ…</p>}
-      {resource.status === "error" && <div role="alert" aria-label="Payment history"><p>{resource.message}</p><button className="button button-outline" type="button" onClick={() => void onRefresh()}>ลองโหลดใหม่</button></div>}
-      {resource.status === "ready" && (resource.data.length
-        ? <div className="money-payment-list">{resource.data.map((payment) => <PaymentCard key={payment.id} payment={payment} tripId={tripId} isOwner={isOwner} currentUserId={currentUserId} isArchived={isArchived} hasResubmission={rejectedParents.has(payment.id)} onReview={review} onResubmit={setResubmissionOf} />)}</div>
-        : <p className="money-empty">ยังไม่มีรายการชำระเงิน</p>)}
-    </section>
+    <div className="money-payment-content">
+      {isOwner && <section className="panel money-panel" role="region" aria-labelledby="money-payment-review-heading">
+        <div className="section-heading"><div><span className="eyebrow">PAYMENT REVIEW</span><h2 id="money-payment-review-heading">คิวรายการรอตรวจสอบ</h2></div></div>
+        {resource.status === "loading" && <p role="status">กำลังโหลดคิวตรวจสอบ…</p>}
+        {resource.status === "error" && <p>โหลดคิวตรวจสอบไม่สำเร็จ กรุณาลองใหม่จากประวัติรายการชำระเงิน</p>}
+        {resource.status === "ready" && (pendingReviewPayments.length
+          ? <div className="money-payment-list">{pendingReviewPayments.map((payment) => <PaymentCard key={payment.id} payment={payment} tripId={tripId} isOwner currentUserId={currentUserId} isArchived={isArchived} hasResubmission={rejectedParents.has(payment.id)} onReview={review} onResubmit={setResubmissionOf} />)}</div>
+          : <p className="money-empty">ไม่มีรายการรอตรวจสอบ</p>)}
+      </section>}
+      <section className="panel money-panel" role="region" aria-labelledby="money-payments-heading">
+        <div className="section-heading"><div><span className="eyebrow">PAYMENT HISTORY</span><h2 id="money-payments-heading">รายการชำระเงิน</h2></div>{isOwner && <span>เจ้าของทริปตรวจสอบได้</span>}</div>
+        {notice && <p role="status" className="money-form-success">{notice}</p>}
+        {actionError && <p role="alert" className="money-form-error">{actionError}</p>}
+        {resource.status === "loading" && <p role="status" aria-label="Payment history">กำลังโหลดรายการชำระ…</p>}
+        {resource.status === "error" && <div role="alert" aria-label="Payment history"><p>{resource.message}</p><button className="button button-outline" type="button" onClick={() => void onRefresh()}>ลองโหลดใหม่</button></div>}
+        {resource.status === "ready" && (historyPayments.length
+          ? <div className="money-payment-list">{historyPayments.map((payment) => <PaymentCard key={payment.id} payment={payment} tripId={tripId} isOwner={isOwner} currentUserId={currentUserId} isArchived={isArchived} hasResubmission={rejectedParents.has(payment.id)} onReview={review} onResubmit={setResubmissionOf} />)}</div>
+          : <p className="money-empty">ยังไม่มีรายการชำระเงิน</p>)}
+      </section>
+    </div>
   </div>;
 }

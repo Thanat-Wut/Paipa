@@ -41,10 +41,19 @@ export function PaymentForm({ tripId, isArchived, resubmissionOf, onSubmitted, o
 
     const form = new FormData(event.currentTarget);
     const amount = String(form.get("amount") ?? "").trim();
-    const date = String(form.get("paymentDate") ?? "");
+    const paymentDateTime = String(form.get("paymentOccurredAt") ?? "");
     const note = String(form.get("note") ?? "").trim();
-    if (!amount || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T12:00:00.000Z`))) {
-      setError("กรุณากรอกจำนวนเงินและวันที่ชำระให้ถูกต้อง");
+    const dateTimeParts = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(paymentDateTime);
+    const parsedPaymentDateTime = dateTimeParts ? new Date(paymentDateTime) : null;
+    const validPaymentDateTime = Boolean(parsedPaymentDateTime
+      && Number.isFinite(parsedPaymentDateTime.getTime())
+      && parsedPaymentDateTime.getFullYear() === Number(dateTimeParts?.[1])
+      && parsedPaymentDateTime.getMonth() + 1 === Number(dateTimeParts?.[2])
+      && parsedPaymentDateTime.getDate() === Number(dateTimeParts?.[3])
+      && parsedPaymentDateTime.getHours() === Number(dateTimeParts?.[4])
+      && parsedPaymentDateTime.getMinutes() === Number(dateTimeParts?.[5]));
+    if (!amount || !validPaymentDateTime || !parsedPaymentDateTime) {
+      setError("กรุณากรอกจำนวนเงินและวันเวลาที่ชำระให้ถูกต้อง");
       return;
     }
     if (method === "bank_transfer" && !proof) {
@@ -59,7 +68,7 @@ export function PaymentForm({ tripId, isArchived, resubmissionOf, onSubmitted, o
       }
     }
 
-    const fingerprint = JSON.stringify({ amount, date, method, note, resubmissionOf, fileName: proof?.name ?? null, fileSize: proof?.size ?? null, fileType: proof?.type ?? null, fileLastModified: proof?.lastModified ?? null });
+    const fingerprint = JSON.stringify({ amount, paymentDateTime, method, note, resubmissionOf, fileName: proof?.name ?? null, fileSize: proof?.size ?? null, fileType: proof?.type ?? null, fileLastModified: proof?.lastModified ?? null });
     if (!attemptRef.current || attemptRef.current.fingerprint !== fingerprint || attemptRef.current.proof !== proof) {
       attemptRef.current = { fingerprint, proof, requestId: crypto.randomUUID() };
     }
@@ -68,7 +77,7 @@ export function PaymentForm({ tripId, isArchived, resubmissionOf, onSubmitted, o
     payload.set("clientRequestId", attemptRef.current.requestId);
     payload.set("amount", amount);
     payload.set("paymentMethod", method);
-    payload.set("paymentOccurredAt", `${date}T12:00:00.000Z`);
+    payload.set("paymentOccurredAt", parsedPaymentDateTime.toISOString());
     payload.set("note", note);
     if (proof) payload.set("proof", proof);
     if (resubmissionOf) payload.set("resubmissionOf", resubmissionOf);
@@ -107,8 +116,8 @@ export function PaymentForm({ tripId, isArchived, resubmissionOf, onSubmitted, o
         <label className="money-field">จำนวนเงิน
           <input aria-label="จำนวนเงิน" name="amount" inputMode="decimal" type="number" min="0.01" step="0.01" required placeholder="0.00" />
         </label>
-        <label className="money-field">วันที่ชำระ
-          <input aria-label="วันที่ชำระ" name="paymentDate" type="date" required />
+        <label className="money-field">วันและเวลาที่ชำระ
+          <input aria-label="วันและเวลาที่ชำระ" name="paymentOccurredAt" type="datetime-local" step="60" required />
         </label>
         <label className="money-field">วิธีชำระ
           <select aria-label="วิธีชำระ" name="paymentMethod" value={method} onChange={(event) => setMethod(event.target.value as typeof method)}>
