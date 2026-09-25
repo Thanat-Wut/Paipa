@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, House, MapPin, MessageCircle, Settings2, StickyNote, UsersRound, Vote, WalletCards } from "lucide-react";
+import { ArrowLeft, CalendarDays, House, MapPin, MessageCircle, Settings2, StickyNote, UsersRound, Vote, WalletCards } from "lucide-react";
 import { Brand } from "@/components/ui";
 import { tripContext } from "@/lib/data";
 import { requireIdentity } from "@/lib/identity-server";
@@ -13,6 +13,7 @@ export default async function TripLayout({ children, params }: { children: React
     { href: `/trips/${tripId}/board`, label: "Board", icon: StickyNote },
     { href: `/trips/${tripId}/chat`, label: "Chat", icon: MessageCircle },
     { href: `/trips/${tripId}/polls`, label: "Poll", icon: Vote },
+    { href: `/trips/${tripId}/plan`, label: "Plan", icon: CalendarDays },
     { href: `/trips/${tripId}/members`, label: "Members", icon: UsersRound },
     { href: `/trips/${tripId}/money`, label: "Money", icon: WalletCards },
     { href: `/trips/${tripId}/settings`, label: "Settings", icon: Settings2 },

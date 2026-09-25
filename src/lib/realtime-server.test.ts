@@ -8,6 +8,7 @@ const LIKE_ID = "c61c0258-57a4-4a1b-9f4d-4e44f4ab19d1";
 const COMMENT_ID = "99486bbb-f070-4200-8ce4-45d6aa605540";
 const POLL_ID = "52a9de93-48cb-49c2-a2bc-42bc8a9033f0";
 const POLL_OPTION_ID = "1126b37d-7da7-43f6-a961-1a46ae2a2ec1";
+const PLAN_ITEM_ID = "3d66f9f8-1ae7-41e2-9993-5ec2d6ea0d3a";
 
 function payload(table: string, eventType: RealtimePayload["eventType"], next: Record<string, unknown>, old: Record<string, unknown> = {}): RealtimePayload {
   return { schema: "public", table, commit_timestamp: "2026-09-25T12:30:00.000Z", eventType, new: next, old };
@@ -49,5 +50,10 @@ describe("M3.3 realtime event projection", () => {
   it("drops Poll relation events whose Poll lookup is outside the requested Trip", async () => {
     const lookupPoll = async () => ({ trip_id: OTHER_TRIP_ID });
     await expect(projectRealtimeEvent(payload("poll_options", "INSERT", { id: POLL_OPTION_ID, poll_id: POLL_ID }), TRIP_ID, undefined, lookupPoll)).resolves.toBeNull();
+  });
+
+  it("projects Plan item events only for the requested Trip", async () => {
+    await expect(projectRealtimeEvent(payload("trip_plan_items", "INSERT", { id: PLAN_ITEM_ID, trip_id: TRIP_ID }), TRIP_ID)).resolves.toEqual({ scope: "plan", entity: "plan_item", action: "upsert", id: PLAN_ITEM_ID, tripId: TRIP_ID });
+    await expect(projectRealtimeEvent(payload("trip_plan_items", "UPDATE", { id: PLAN_ITEM_ID, trip_id: OTHER_TRIP_ID }), TRIP_ID)).resolves.toBeNull();
   });
 });

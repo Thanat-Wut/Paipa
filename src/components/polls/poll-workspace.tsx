@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Check, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parsePollResponse, type Poll, type PollCreateInput, type PollOption, type PollResponse } from "@/lib/poll";
@@ -52,7 +53,7 @@ function PollCard({ poll, currentUserId, ownerId, isArchived, busy, onVote, onRe
   const highest = Math.max(...poll.options.map((option) => option.voteCount));
   return <article className={`poll-card ${isClosed ? "poll-card-closed" : ""}`} aria-label={poll.question}>
     <header className="poll-card-header"><div><span className="eyebrow">{isClosed ? "FINAL DECISION" : "GROUP VOTE"}</span><h3>{poll.question}</h3><p>โดย {poll.creatorName}</p></div><span className={`poll-status ${isClosed ? "poll-status-closed" : ""}`}>{isClosed ? "ปิดโหวตแล้ว" : "กำลังโหวต"}</span></header>
-    <div className="poll-option-list" role="group" aria-label={`ตัวเลือกของ ${poll.question}`}>
+    <Link className="text-button" href={`/trips/${poll.tripId}/plan?poll=${poll.id}`}>เพิ่มเข้าแผน</Link><div className="poll-option-list" role="group" aria-label={`ตัวเลือกของ ${poll.question}`}>
       {poll.options.map((option) => <div className={`poll-option-wrap ${option.voteCount === highest && highest > 0 ? "poll-option-winner" : ""}`} key={option.id}><OptionRow option={option} isClosed={isClosed || isArchived} busy={busy} onVote={() => onVote(option.id)}/>{option.votedByCurrentUser && !isClosed && !isArchived && <button className="poll-remove-vote" type="button" disabled={busy} onClick={onRemoveVote}>ถอนโหวต</button>}</div>)}
     </div>
     <footer className="poll-card-footer"><span>{poll.totalVotes} โหวต</span><span>{isClosed ? "ผลโหวตสุดท้าย" : "เลือกได้หนึ่งข้อ"}</span>{canManage && !isArchived && <div className="poll-card-actions">{!isClosed && <button className="text-button" type="button" disabled={busy} onClick={() => setConfirmation("close")}><Check size={13}/> ปิดโหวต</button>}<button className="text-button danger-text" type="button" disabled={busy} onClick={() => setConfirmation("delete")}><Trash2 size={13}/> ลบโพล</button></div>}</footer>
