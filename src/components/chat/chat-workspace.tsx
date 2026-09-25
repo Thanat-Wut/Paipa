@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { MessageCircle, Send, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { MemberAvatar } from "@/components/ui";
 import { parseChatResponse, type ChatMessage, type ChatNoteReference, type ChatResponse } from "@/lib/chat";
 
@@ -73,21 +73,49 @@ export function ChatWorkspace({ tripId, currentUserId, isArchived, initialNote =
   const [selectedNote, setSelectedNote] = useState<ChatNoteReference | null>(initialNote);
   const [busy, setBusy] = useState(false);
   const [pageError, setPageError] = useState("");
+  const requestRef = useRef<AbortController | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
+  const nearBottomRef = useRef(true);
 
   const load = useCallback(async () => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     try {
-      const response = await fetch(`/api/trips/${tripId}/chat`, { cache: "no-store", headers: { Accept: "application/json" } });
+      const response = await fetch(`/api/trips/${tripId}/chat`, { cache: "no-store", headers: { Accept: "application/json" }, signal: controller.signal });
       const body = await readResponse(response);
       const parsed = parseChatResponse(body);
       if (!response.ok || !parsed) throw new Error(errorMessage(body.code, "โหลดแชตไม่สำเร็จ กรุณาลองใหม่"));
       setResource({ status: "ready", data: parsed });
-    } catch (reason) { setResource({ status: "error", message: reason instanceof Error ? reason.message : "โหลดแชตไม่สำเร็จ กรุณาลองใหม่" }); }
+    } catch (reason) {
+      if (controller.signal.aborted) return;
+      setResource({ status: "error", message: reason instanceof Error ? reason.message : "โหลดแชตไม่สำเร็จ กรุณาลองใหม่" });
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null;
+    }
   }, [tripId]);
 
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
+  useEffect(() => {
+    const source = new EventSource(`/api/trips/${tripId}/realtime?scope=chat`);
+    const refresh = () => { void load(); };
+    source.onopen = refresh;
+    source.onmessage = refresh;
+    source.onerror = refresh;
+    return () => {
+      source.close();
+      requestRef.current?.abort();
+    };
+  }, [tripId, load]);
 
   const messages = resource.status === "ready" ? resource.data.messages : [];
   const noteForComposer = useMemo(() => selectedNote, [selectedNote]);
+
+  useEffect(() => {
+    const list = messageListRef.current;
+    if (!list || !nearBottomRef.current) return;
+    list.scrollTop = list.scrollHeight;
+  }, [messages.length]);
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,7 +125,7 @@ export function ChatWorkspace({ tripId, currentUserId, isArchived, initialNote =
       const response = await fetch(`/api/trips/${tripId}/chat`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ content, noteId: noteForComposer?.id ?? null }) });
       const body = await readResponse(response);
       if (!response.ok) throw new Error(errorMessage(body.code, "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่"));
-      setContent(""); setSelectedNote(null); await load();
+      setContent(""); setSelectedNote(null); nearBottomRef.current = true; await load();
     } catch (reason) { setPageError(reason instanceof Error ? reason.message : "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่"); }
     finally { setBusy(false); }
   }
@@ -106,7 +134,10 @@ export function ChatWorkspace({ tripId, currentUserId, isArchived, initialNote =
     <div className="chat-panel">
       <div className="chat-heading"><div><span className="eyebrow">SHARED CHAT</span><h2>คุยกันในทริปนี้</h2><p>คุยสั้น ๆ และส่งต่อไอเดียจากบอร์ดให้เพื่อนเห็น</p></div><MessageCircle size={28}/></div>
       {isArchived && <p className="chat-archived" role="status">ทริปนี้ปิดแล้ว อ่านแชตย้อนหลังได้ แต่ส่งหรือลบข้อความไม่ได้</p>}
-      <div className="chat-message-list" aria-live="polite">
+      <div className="chat-message-list" ref={messageListRef} aria-live="polite" onScroll={(event) => {
+        const list = event.currentTarget;
+        nearBottomRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+      }}>
         {resource.status === "loading" && <div className="panel chat-state" role="status">กำลังโหลดแชต…</div>}
         {resource.status === "error" && <div className="panel chat-state" role="alert"><p>{resource.message}</p><button className="button button-outline" type="button" onClick={() => void load()}>ลองโหลดใหม่</button></div>}
         {resource.status === "ready" && !messages.length && <div className="panel chat-state"><span className="empty-illustration">💬</span><h3>ยังไม่มีข้อความ</h3><p>ชวนเพื่อนคุยเรื่องทริปนี้เป็นคนแรกเลย</p></div>}

@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Heart, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { MemberAvatar } from "@/components/ui";
 import { BOARD_NOTE_COLORS, type BoardNote, type BoardNoteColor, type BoardResponse } from "@/lib/board";
@@ -114,20 +114,40 @@ export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived, foc
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<BoardNote | null>(null);
   const [pageError, setPageError] = useState("");
+  const requestRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     setResource((current) => current.status === "ready" ? current : { status: "loading" });
     try {
-      const response = await fetch(`/api/trips/${tripId}/board`, { cache: "no-store", headers: { Accept: "application/json" } });
+      const response = await fetch(`/api/trips/${tripId}/board`, { cache: "no-store", headers: { Accept: "application/json" }, signal: controller.signal });
       const body = await response.json() as BoardResponse | { code?: string };
       if (!response.ok || !("notes" in body)) throw new Error(errorMessage("code" in body ? body.code : undefined, "โหลดบอร์ดไม่สำเร็จ กรุณาลองใหม่"));
       setResource({ status: "ready", data: body });
-    } catch (reason) { setResource({ status: "error", message: reason instanceof Error ? reason.message : "โหลดบอร์ดไม่สำเร็จ กรุณาลองใหม่" }); }
+    } catch (reason) {
+      if (controller.signal.aborted) return;
+      setResource({ status: "error", message: reason instanceof Error ? reason.message : "โหลดบอร์ดไม่สำเร็จ กรุณาลองใหม่" });
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null;
+    }
   }, [tripId]);
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+  useEffect(() => {
+    const source = new EventSource(`/api/trips/${tripId}/realtime?scope=board`);
+    const refresh = () => { void load(); };
+    source.onopen = refresh;
+    source.onmessage = refresh;
+    source.onerror = refresh;
+    return () => {
+      source.close();
+      requestRef.current?.abort();
+    };
+  }, [tripId, load]);
   useEffect(() => {
     if (resource.status !== "ready" || !focusNoteId) return;
     const note = Array.from(document.querySelectorAll<HTMLElement>("[data-note-id]")).find((element) => element.dataset.noteId === focusNoteId);
