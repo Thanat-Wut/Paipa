@@ -15,6 +15,7 @@ const TRIP_ID = "c72d7c85-8be0-4f49-a8cc-22e172993e88";
 const ACTOR_ID = "c61c0258-57a4-4a1b-9f4d-4e44f4ab19d1";
 const CHAT_MESSAGE_ID = "2d66f9f8-1ae7-41e2-9993-5ec2d6ea0d3a";
 const POLL_ID = "52a9de93-48cb-49c2-a2bc-42bc8a9033f0";
+const ACTIVITY_ID = "3d9f2c5a-4efb-4f70-a42b-7bf4a72e0f1a";
 
 function request() {
   return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=chat`);
@@ -22,6 +23,10 @@ function request() {
 
 function pollRequest() {
   return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=polls`);
+}
+
+function activityRequest() {
+  return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=activity`);
 }
 
 describe("M3.3 realtime SSE route", () => {
@@ -40,6 +45,7 @@ describe("M3.3 realtime SSE route", () => {
         : table === "polls" ? [{ id: POLL_ID }]
         : table === "poll_options" ? [{ id: "1126b37d-7da7-43f6-a961-1a46ae2a2ec1", poll_id: POLL_ID }]
         : table === "poll_votes" ? [{ profile_id: ACTOR_ID, poll_id: POLL_ID }]
+        : table === "trip_activities" ? [{ id: ACTIVITY_ID }]
         : [];
       return {
         select: vi.fn(() => ({
@@ -122,6 +128,24 @@ describe("M3.3 realtime SSE route", () => {
     await Promise.resolve();
     const next = await reader?.read();
     expect(new TextDecoder().decode(next?.value)).toContain(`"entity":"poll"`);
+    expect(new TextDecoder().decode(next?.value)).toContain(`"action":"delete"`);
+    await reader?.cancel();
+  });
+
+  it("opens only Activity listeners and scopes Activity DELETE payloads through the known Activity cache", async () => {
+    const { GET } = await import("@/app/api/trips/[tripId]/realtime/route");
+    const response = await GET(activityRequest(), { params: Promise.resolve({ tripId: TRIP_ID }) });
+    const reader = response.body?.getReader();
+    await reader?.read();
+    await Promise.resolve();
+    expect(listeners.map(({ config }) => config.table)).toEqual(expect.arrayContaining(["trip_activities"]));
+    expect(listeners.map(({ config }) => config.table)).not.toContain("chat_messages");
+    const deleteListener = listeners.find(({ config }) => config.table === "trip_activities" && config.event === "DELETE");
+    expect(deleteListener).toBeDefined();
+    deleteListener?.handler({ schema: "public", table: "trip_activities", commit_timestamp: new Date().toISOString(), eventType: "DELETE", new: {}, old: { id: ACTIVITY_ID } });
+    await Promise.resolve();
+    const next = await reader?.read();
+    expect(new TextDecoder().decode(next?.value)).toContain(`"entity":"activity"`);
     expect(new TextDecoder().decode(next?.value)).toContain(`"action":"delete"`);
     await reader?.cancel();
   });

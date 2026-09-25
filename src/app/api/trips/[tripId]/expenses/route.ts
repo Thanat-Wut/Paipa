@@ -307,7 +307,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
   });
   if (uploaded.error) return jsonError(502, "EXPENSE_RECEIPT_UPLOAD_FAILED");
 
-  const { data: rpcData, error: rpcError } = await supabase.rpc("create_expense", {
+  const { data: rpcData, error: rpcError } = await supabase.rpc("create_expense_with_activity", {
     p_actor_id: identity.id,
     p_trip_id: tripId,
     p_expense_id: expenseId,

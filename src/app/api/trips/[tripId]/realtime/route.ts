@@ -7,7 +7,7 @@ import { encodeSse, projectRealtimeEvent, REALTIME_SSE_HEADERS, type RealtimeEve
 
 export const runtime = "nodejs";
 
-type RealtimeScope = "board" | "chat" | "polls" | "plan";
+type RealtimeScope = "board" | "chat" | "polls" | "plan" | "activity";
 
 function errorResponse(status: number, code: string) {
   return Response.json({ code }, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -15,7 +15,7 @@ function errorResponse(status: number, code: string) {
 
 function requestedScope(request: Request): RealtimeScope | null {
   const scope = new URL(request.url).searchParams.get("scope");
-  return scope === "board" || scope === "chat" || scope === "polls" || scope === "plan" ? scope : null;
+  return scope === "board" || scope === "chat" || scope === "polls" || scope === "plan" || scope === "activity" ? scope : null;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ tripId: string }> }) {
@@ -51,6 +51,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
       const knownMessageIds = new Set<string>();
       const knownPollIds = new Set<string>();
       const knownPlanItemIds = new Set<string>();
+      const knownActivityIds = new Set<string>();
       const knownOptionPollIds = new Map<string, string>();
       // A profile can vote in multiple Polls; key vote cache entries by the
       // composite row identity rather than profile_id alone.
@@ -133,6 +134,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
             payload = { ...payload, old: { ...payload.old, trip_id: tripId } };
             knownPlanItemIds.delete(itemId);
           } else if (itemId) knownPlanItemIds.add(itemId);
+        } else if (payload.table === "trip_activities") {
+          const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+          const activityId = typeof row.id === "string" ? row.id : null;
+          if (payload.eventType === "DELETE") {
+            if (!activityId || !knownActivityIds.has(activityId)) return;
+            payload = { ...payload, old: { ...payload.old, trip_id: tripId } };
+            knownActivityIds.delete(activityId);
+          } else if (activityId) knownActivityIds.add(activityId);
         }
         void projectRealtimeEvent(payload, tripId, scope === "board" ? lookupNote : undefined, scope === "polls" ? lookupPoll : undefined).then((event) => {
           if (event) enqueue(event);
@@ -187,6 +196,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
         listen("trip_plan_items", "INSERT", `trip_id=eq.${tripId}`);
         listen("trip_plan_items", "UPDATE", `trip_id=eq.${tripId}`);
         listen("trip_plan_items", "DELETE");
+      }
+      if (scope === "activity") {
+        void access.supabase.from("trip_activities").select("id").eq("trip_id", tripId).then(({ data }) => {
+          for (const row of data ?? []) if (typeof row.id === "string") knownActivityIds.add(row.id);
+        });
+        listen("trip_activities", "INSERT", `trip_id=eq.${tripId}`);
+        listen("trip_activities", "UPDATE", `trip_id=eq.${tripId}`);
+        listen("trip_activities", "DELETE");
       }
       channel.subscribe((status) => {
         if (status !== "SUBSCRIBED") enqueue({ scope, status: String(status) });

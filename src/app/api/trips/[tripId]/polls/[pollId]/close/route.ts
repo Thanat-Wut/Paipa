@@ -15,7 +15,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ tr
   try { identity = await getOptionalIdentity(); } catch { return pollJsonError(503, "POLL_SERVICE_UNAVAILABLE"); }
   if (!identity) return pollJsonError(401, "IDENTITY_REQUIRED");
   try {
-    const { error } = await createAdminClient().rpc("close_poll", { p_actor_id: identity.id, p_poll_id: pollId });
+    const { error } = await createAdminClient().rpc("close_poll_with_activity", { p_actor_id: identity.id, p_poll_id: pollId });
     if (error) {
       const mapped = mapPollRpcError(error, "close");
       return pollJsonError(mapped.status, mapped.code);

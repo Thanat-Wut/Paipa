@@ -10,8 +10,8 @@ export type RealtimePayload = {
 };
 
 export type ProjectedRealtimeEvent = {
-  scope: "board" | "chat" | "polls" | "plan";
-  entity: "note" | "like" | "comment" | "message" | "poll" | "option" | "vote" | "plan_item";
+  scope: "board" | "chat" | "polls" | "plan" | "activity";
+  entity: "note" | "like" | "comment" | "message" | "poll" | "option" | "vote" | "plan_item" | "activity";
   action: "upsert" | "delete";
   id: string;
   tripId: string;
@@ -76,6 +76,13 @@ export async function projectRealtimeEvent(payload: RealtimePayload, tripId: str
     const id = stringValue(row.id);
     if (!rowTripId || rowTripId !== tripId || !id) return null;
     return { scope: "plan", entity: "plan_item", action, id, tripId };
+  }
+
+  if (payload.table === "trip_activities") {
+    const rowTripId = stringValue(row.trip_id);
+    const id = stringValue(row.id);
+    if (!rowTripId || rowTripId !== tripId || !id) return null;
+    return { scope: "activity", entity: "activity", action, id, tripId };
   }
 
   if (payload.table !== "board_note_likes" && payload.table !== "board_note_comments") return null;

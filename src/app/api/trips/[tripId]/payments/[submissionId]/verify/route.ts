@@ -23,7 +23,7 @@ export async function POST(
 
   let result: Awaited<ReturnType<ReturnType<typeof createAdminClient>["rpc"]>>;
   try {
-    result = await createAdminClient().rpc("verify_payment", {
+    result = await createAdminClient().rpc("verify_payment_with_activity", {
       p_actor_id: identity.id,
       p_trip_id: tripId,
       p_submission_id: submissionId,

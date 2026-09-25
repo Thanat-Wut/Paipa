@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
   try {
     const supabase = createAdminClient();
     if (!(await noteIsInTrip(supabase, noteId, tripId))) return boardJsonError(404, "NOTE_NOT_FOUND");
-    const { data, error } = await supabase.rpc("create_board_note_comment", { p_actor_id: identity.id, p_note_id: noteId, p_content: content });
+    const { data, error } = await supabase.rpc("create_board_comment_with_activity", { p_actor_id: identity.id, p_note_id: noteId, p_content: content });
     if (error || !data) {
       const mapped = mapBoardRpcError(error ?? { message: "comment failed" }, "comment");
       return boardJsonError(mapped.status, mapped.code);

@@ -61,7 +61,7 @@ describe("M4.1 Poll routes", () => {
       headers: { "Content-Type": "application/json" },
     }), params());
     expect(response.status).toBe(201);
-    expect(supabase.rpc).toHaveBeenCalledWith("create_poll", {
+    expect(supabase.rpc).toHaveBeenCalledWith("create_poll_with_activity", {
       p_actor_id: ACTOR_ID,
       p_trip_id: TRIP_ID,
       p_question: "ไปไหนดี?",
@@ -82,7 +82,7 @@ describe("M4.1 Poll routes", () => {
     await poll.DELETE(new Request("http://localhost", { method: "DELETE" }), routeParams);
     expect(supabase.rpc).toHaveBeenNthCalledWith(1, "vote_poll", { p_actor_id: ACTOR_ID, p_poll_id: POLL_ID, p_option_id: OPTION_ID });
     expect(supabase.rpc).toHaveBeenNthCalledWith(2, "remove_poll_vote", { p_actor_id: ACTOR_ID, p_poll_id: POLL_ID });
-    expect(supabase.rpc).toHaveBeenNthCalledWith(3, "close_poll", { p_actor_id: ACTOR_ID, p_poll_id: POLL_ID });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(3, "close_poll_with_activity", { p_actor_id: ACTOR_ID, p_poll_id: POLL_ID });
     expect(supabase.rpc).toHaveBeenNthCalledWith(4, "delete_poll", { p_actor_id: ACTOR_ID, p_poll_id: POLL_ID });
   });
 });

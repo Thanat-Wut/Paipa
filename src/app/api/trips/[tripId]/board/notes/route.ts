@@ -16,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
   const input = normalizeBoardNoteInput(body);
   if (!input) return boardJsonError(400, "VALIDATION_ERROR");
   try {
-    const { data, error } = await createAdminClient().rpc("create_board_note", {
+    const { data, error } = await createAdminClient().rpc("create_board_note_with_activity", {
       p_actor_id: identity.id, p_trip_id: tripId, p_title: input.title, p_content: input.content, p_color: input.color,
     });
     if (error || !data) {

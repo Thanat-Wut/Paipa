@@ -45,7 +45,7 @@ describe("M2.4 payment review routes", () => {
     const response = await POST(request, routeContext());
 
     expect(requireIdentityMock).toHaveBeenCalledWith(`/trips/${TRIP_ID}`);
-    expect(rpcMock).toHaveBeenCalledWith("verify_payment", {
+    expect(rpcMock).toHaveBeenCalledWith("verify_payment_with_activity", {
       p_actor_id: OWNER_ID,
       p_trip_id: TRIP_ID,
       p_submission_id: SUBMISSION_ID,
