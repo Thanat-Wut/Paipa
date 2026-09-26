@@ -38,8 +38,8 @@ export async function createDeviceLinkCode(): Promise<
   { ok: true; code: string; expiresAt: string }
   | { ok: false; message: string }
 > {
+  const identity = await requireIdentity("/trips");
   try {
-    const identity = await requireIdentity("/trips");
     const code = generateDeviceLinkCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     const { error } = await createAdminClient().from("device_link_tokens").insert({
