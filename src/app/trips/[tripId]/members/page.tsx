@@ -2,6 +2,7 @@ import Image from "next/image";
 import { leaveTrip } from "@/actions/trips";
 import { MemberAvatar, PageIntro, ErrorBox } from "@/components/ui";
 import { MemberEditor } from "@/components/member-editor";
+import { ConfirmSubmit } from "@/components/confirm-submit";
 import { tripContext, tripMembers } from "@/lib/data";
 import { requireIdentity } from "@/lib/identity-server";
 
@@ -30,6 +31,7 @@ export default async function MembersPage({
         ทุกคนที่ตอบรับคำชวนมาแล้ว
       </PageIntro>
       <ErrorBox message={query.error} />
+      {trip.status === "archived" && <div className="notice-box" role="status">ทริปนี้เก็บถาวรแล้ว ข้อมูลสมาชิกและสถานะต่าง ๆ แสดงเพื่อดูย้อนหลังเท่านั้น</div>}
       <div className="members-layout">
         <section className="panel">
           <div className="section-heading">
@@ -84,13 +86,12 @@ export default async function MembersPage({
               initialAvatarType={self.avatar_type}
               initialSignaturePath={self.signature_path}
               initialAttendance={self.attendance}
+              isArchived={trip.status === "archived"}
             />
-            {self.role !== "owner" && (
+            {self.role !== "owner" && trip.status !== "archived" && (
               <form action={leaveTrip} className="danger-inline">
                 <input type="hidden" name="tripId" value={tripId} />
-                <button className="text-button danger-text" type="submit">
-                  ออกจากทริปนี้
-                </button>
+                <ConfirmSubmit className="text-button danger-text" message="ต้องการออกจากทริปนี้ใช่ไหม?">ออกจากทริปนี้</ConfirmSubmit>
               </form>
             )}
           </section>

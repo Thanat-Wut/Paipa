@@ -5,6 +5,8 @@ import { MessageCircle, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { MemberAvatar } from "@/components/ui";
 import { parseChatResponse, type ChatMessage, type ChatNoteReference, type ChatResponse } from "@/lib/chat";
+import { clientErrorMessage } from "@/lib/client-error";
+import { createRealtimeRefreshScheduler } from "@/lib/realtime-refresh";
 
 type ChatWorkspaceProps = {
   tripId: string;
@@ -52,7 +54,7 @@ function MessageRow({ message, tripId, currentUserId, isArchived, onDeleted }: {
       const body = await readResponse(response);
       if (!response.ok) throw new Error(errorMessage(body.code, "ลบข้อความไม่สำเร็จ กรุณาลองใหม่"));
       await onDeleted();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "ลบข้อความไม่สำเร็จ กรุณาลองใหม่"); }
+    } catch (reason) { setError(clientErrorMessage(reason, "ลบข้อความไม่สำเร็จ กรุณาลองใหม่")); }
     finally { setBusy(false); }
   }
   return <article className={`chat-message ${isMine ? "chat-message-mine" : ""}`}>
@@ -89,7 +91,7 @@ export function ChatWorkspace({ tripId, currentUserId, isArchived, initialNote =
       setResource({ status: "ready", data: parsed });
     } catch (reason) {
       if (controller.signal.aborted) return;
-      setResource({ status: "error", message: reason instanceof Error ? reason.message : "โหลดแชตไม่สำเร็จ กรุณาลองใหม่" });
+      setResource({ status: "error", message: clientErrorMessage(reason, "โหลดแชตไม่สำเร็จ กรุณาลองใหม่") });
     } finally {
       if (requestRef.current === controller) requestRef.current = null;
     }
@@ -98,12 +100,14 @@ export function ChatWorkspace({ tripId, currentUserId, isArchived, initialNote =
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
   useEffect(() => {
     const source = new EventSource(`/api/trips/${tripId}/realtime?scope=chat`);
-    const refresh = () => { void load(); };
-    source.onopen = refresh;
-    source.onmessage = refresh;
-    source.onerror = refresh;
+    const scheduler = createRealtimeRefreshScheduler(load);
+    const refresh = () => scheduler.schedule();
+    source.onopen = refresh; source.onmessage = refresh; source.onerror = refresh;
+    window.addEventListener("online", refresh);
     return () => {
+      scheduler.dispose();
       source.close();
+      window.removeEventListener("online", refresh);
       requestRef.current?.abort();
     };
   }, [tripId, load]);
@@ -126,7 +130,7 @@ export function ChatWorkspace({ tripId, currentUserId, isArchived, initialNote =
       const body = await readResponse(response);
       if (!response.ok) throw new Error(errorMessage(body.code, "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่"));
       setContent(""); setSelectedNote(null); nearBottomRef.current = true; await load();
-    } catch (reason) { setPageError(reason instanceof Error ? reason.message : "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่"); }
+    } catch (reason) { setPageError(clientErrorMessage(reason, "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่")); }
     finally { setBusy(false); }
   }
 

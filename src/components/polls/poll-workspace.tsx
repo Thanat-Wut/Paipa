@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Check, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parsePollResponse, type Poll, type PollCreateInput, type PollOption, type PollResponse } from "@/lib/poll";
+import { clientErrorMessage } from "@/lib/client-error";
+import { createRealtimeRefreshScheduler } from "@/lib/realtime-refresh";
 
 type PollResource = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: PollResponse };
 
@@ -82,7 +84,7 @@ export function PollWorkspace({ tripId, currentUserId, ownerId, isArchived }: Po
       setResource({ status: "ready", data: parsed });
     } catch (reason) {
       if (controller.signal.aborted) return;
-      setResource({ status: "error", message: reason instanceof Error ? reason.message : "โหลดโพลไม่สำเร็จ กรุณาลองใหม่" });
+      setResource({ status: "error", message: clientErrorMessage(reason, "โหลดโพลไม่สำเร็จ กรุณาลองใหม่") });
     } finally {
       if (requestRef.current === controller) requestRef.current = null;
     }
@@ -91,11 +93,11 @@ export function PollWorkspace({ tripId, currentUserId, ownerId, isArchived }: Po
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
   useEffect(() => {
     const source = new EventSource(`/api/trips/${tripId}/realtime?scope=polls`);
-    const refresh = () => { void load(); };
-    source.onopen = refresh;
-    source.onmessage = refresh;
-    source.onerror = refresh;
-    return () => { source.close(); requestRef.current?.abort(); };
+    const scheduler = createRealtimeRefreshScheduler(load);
+    const refresh = () => scheduler.schedule();
+    source.onopen = refresh; source.onmessage = refresh; source.onerror = refresh;
+    window.addEventListener("online", refresh);
+    return () => { scheduler.dispose(); source.close(); window.removeEventListener("online", refresh); requestRef.current?.abort(); };
   }, [tripId, load]);
 
   async function mutate(pollId: string, input: RequestInit, fallback: string) {
@@ -109,7 +111,7 @@ export function PollWorkspace({ tripId, currentUserId, ownerId, isArchived }: Po
       }
       await load();
     } catch (reason) {
-      setPageError(reason instanceof Error ? reason.message : fallback);
+      setPageError(clientErrorMessage(reason, fallback));
     } finally { setBusyId(null); }
   }
 
@@ -124,7 +126,7 @@ export function PollWorkspace({ tripId, currentUserId, ownerId, isArchived }: Po
       }
       await load();
     } catch (reason) {
-      setPageError(reason instanceof Error ? reason.message : fallback);
+      setPageError(clientErrorMessage(reason, fallback));
     } finally { setBusyId(null); }
   }
 
@@ -143,7 +145,7 @@ export function PollWorkspace({ tripId, currentUserId, ownerId, isArchived }: Po
       setShowCreate(false);
       await load();
     } catch (reason) {
-      setPageError(reason instanceof Error ? reason.message : "เปิดโพลไม่สำเร็จ");
+      setPageError(clientErrorMessage(reason, "เปิดโพลไม่สำเร็จ"));
     } finally { setBusyId(null); }
   }
 

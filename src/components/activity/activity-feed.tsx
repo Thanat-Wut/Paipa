@@ -5,6 +5,8 @@ import { Activity as ActivityIcon, ArrowRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MemberAvatar } from "@/components/ui";
 import { activityRelativeTime, activitySentence, parseActivityResponse, type ActivityResponse } from "@/lib/activity";
+import { clientErrorMessage } from "@/lib/client-error";
+import { createRealtimeRefreshScheduler } from "@/lib/realtime-refresh";
 
 type Props = { tripId: string };
 type Resource = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: ActivityResponse };
@@ -35,7 +37,7 @@ export function ActivityFeed({ tripId }: Props) {
       if (!response.ok || !parsed) throw new Error("กิจกรรมโหลดไม่สำเร็จ");
       if (!controller.signal.aborted) setResource({ status: "ready", data: dedupe(parsed) });
     } catch (reason) {
-      if (!controller.signal.aborted) setResource({ status: "error", message: reason instanceof Error ? reason.message : "กิจกรรมโหลดไม่สำเร็จ" });
+      if (!controller.signal.aborted) setResource({ status: "error", message: clientErrorMessage(reason, "กิจกรรมโหลดไม่สำเร็จ") });
     } finally {
       if (requestRef.current === controller) requestRef.current = null;
     }
@@ -44,12 +46,13 @@ export function ActivityFeed({ tripId }: Props) {
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     const source = new EventSource(`/api/trips/${tripId}/realtime?scope=activity`);
-    const refresh = () => void load();
+    const scheduler = createRealtimeRefreshScheduler(load);
+    const refresh = () => scheduler.schedule();
     source.onopen = refresh;
     source.onmessage = refresh;
     source.onerror = refresh;
     window.addEventListener("online", refresh);
-    return () => { window.clearTimeout(timer); source.close(); window.removeEventListener("online", refresh); requestRef.current?.abort(); };
+    return () => { window.clearTimeout(timer); scheduler.dispose(); source.close(); window.removeEventListener("online", refresh); requestRef.current?.abort(); };
   }, [load, tripId]);
 
   return <section className="activity-feed" aria-label="Recent Activity">

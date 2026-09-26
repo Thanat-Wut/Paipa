@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link";
 import { MemberAvatar } from "@/components/ui";
 import { BOARD_NOTE_COLORS, type BoardNote, type BoardNoteColor, type BoardResponse } from "@/lib/board";
+import { clientErrorMessage } from "@/lib/client-error";
+import { createRealtimeRefreshScheduler } from "@/lib/realtime-refresh";
 
 type BoardWorkspaceProps = { tripId: string; currentUserId: string; ownerId: string; isArchived: boolean; focusNoteId?: string | null };
 type Resource = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: BoardResponse };
@@ -51,7 +53,7 @@ function NoteForm({ initial, editing, disabled, onCancel, onSaved }: {
     if (saving || disabled) return;
     setSaving(true); setError("");
     try { await onSaved({ title: form.title.trim(), content: form.content.trim(), color: form.color }); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "บันทึกไอเดียไม่สำเร็จ"); }
+    catch (reason) { setError(clientErrorMessage(reason, "บันทึกไอเดียไม่สำเร็จ")); }
     finally { setSaving(false); }
   }
 
@@ -74,14 +76,14 @@ function CommentList({ note, currentUserId, ownerId, tripId, disabled, onChanged
     if (!content.trim() || busy || disabled) return;
     setBusy(true); setError("");
     try { await requestJson(`/api/trips/${tripId}/board/notes/${note.id}/comments`, { method: "POST", body: JSON.stringify({ content }) }); setContent(""); await onChanged(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "เพิ่มคอมเมนต์ไม่สำเร็จ"); }
+    catch (reason) { setError(clientErrorMessage(reason, "เพิ่มคอมเมนต์ไม่สำเร็จ")); }
     finally { setBusy(false); }
   }
   async function removeComment(commentId: string) {
     if (busy || disabled) return;
     setBusy(true); setError("");
     try { await requestJson(`/api/trips/${tripId}/board/notes/${note.id}/comments/${commentId}`, { method: "DELETE" }); await onChanged(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "ลบคอมเมนต์ไม่สำเร็จ"); }
+    catch (reason) { setError(clientErrorMessage(reason, "ลบคอมเมนต์ไม่สำเร็จ")); }
     finally { setBusy(false); }
   }
   return <div className="board-comments"><div className="board-comments-title"><MessageCircle size={15}/> คุยกันหน่อย <span>{note.comments.length}</span></div>{note.comments.map((comment) => <div className="board-comment" key={comment.id}><div className="board-comment-body"><strong>{comment.authorName}</strong><p>{comment.content}</p></div>{(comment.authorId === currentUserId || ownerId === currentUserId) && <button className="text-button" type="button" disabled={busy || disabled} onClick={() => void removeComment(comment.id)}>ลบ</button>}</div>)}<form className="board-comment-form" onSubmit={addComment}><input aria-label={`คอมเมนต์ไอเดีย ${note.title}`} value={content} maxLength={1000} placeholder="ชวนเพื่อนคุย…" disabled={busy || disabled} onChange={(event) => setContent(event.target.value)}/><button className="icon-button" type="submit" aria-label="ส่งคอมเมนต์" disabled={busy || disabled || !content.trim()}><Send size={16}/></button></form>{error && <p className="board-error" role="alert">{error}</p>}</div>;
@@ -96,7 +98,7 @@ function NoteCard({ note, currentUserId, ownerId, tripId, isArchived, first, las
     if (busy || isArchived) return;
     setBusy(true); setError("");
     try { await requestJson(url, init); await onChanged(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "ทำรายการไม่สำเร็จ"); }
+    catch (reason) { setError(clientErrorMessage(reason, "ทำรายการไม่สำเร็จ")); }
     finally { setBusy(false); }
   }
   return <article className={`board-note board-note-${note.color}`} data-note-id={note.id}>
@@ -128,7 +130,7 @@ export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived, foc
       setResource({ status: "ready", data: body });
     } catch (reason) {
       if (controller.signal.aborted) return;
-      setResource({ status: "error", message: reason instanceof Error ? reason.message : "โหลดบอร์ดไม่สำเร็จ กรุณาลองใหม่" });
+      setResource({ status: "error", message: clientErrorMessage(reason, "โหลดบอร์ดไม่สำเร็จ กรุณาลองใหม่") });
     } finally {
       if (requestRef.current === controller) requestRef.current = null;
     }
@@ -139,12 +141,14 @@ export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived, foc
   }, [load]);
   useEffect(() => {
     const source = new EventSource(`/api/trips/${tripId}/realtime?scope=board`);
-    const refresh = () => { void load(); };
-    source.onopen = refresh;
-    source.onmessage = refresh;
-    source.onerror = refresh;
+    const scheduler = createRealtimeRefreshScheduler(load);
+    const refresh = () => scheduler.schedule();
+    source.onopen = refresh; source.onmessage = refresh; source.onerror = refresh;
+    window.addEventListener("online", refresh);
     return () => {
+      scheduler.dispose();
       source.close();
+      window.removeEventListener("online", refresh);
       requestRef.current?.abort();
     };
   }, [tripId, load]);

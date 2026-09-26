@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eraser, ImagePlus, PenLine, X } from "lucide-react";
 import { joinTrip, updateMember } from "@/actions/trips";
+import { clientErrorMessage } from "@/lib/client-error";
 
 type Props = {
   code?: string;
@@ -13,6 +14,7 @@ type Props = {
   initialAvatarType?: string;
   initialSignaturePath?: string | null;
   initialAttendance?: string;
+  isArchived?: boolean;
 };
 
 type UploadedFile = { kind: "avatar" | "signature"; path: string };
@@ -33,7 +35,7 @@ async function removeFile(file: UploadedFile) {
   return response.ok;
 }
 
-export function MemberEditor({ code, tripId, initialName, initialAvatarUrl, initialAvatarType, initialSignaturePath, initialAttendance }: Props) {
+export function MemberEditor({ code, tripId, initialName, initialAvatarUrl, initialAvatarType, initialSignaturePath, initialAttendance, isArchived = false }: Props) {
   const router = useRouter();
   const [avatarType, setAvatarType] = useState(initialAvatarType ?? "emoji");
   const [attendance, setAttendance] = useState(initialAttendance ?? "maybe");
@@ -86,6 +88,7 @@ export function MemberEditor({ code, tripId, initialName, initialAvatarUrl, init
   }
 
   function requestGoing(nextAttendance: string) {
+    if (isArchived) return;
     if (nextAttendance === "going" && attendance !== "going") {
       clearSignature();
       setError("");
@@ -173,7 +176,7 @@ export function MemberEditor({ code, tripId, initialName, initialAvatarUrl, init
         router.refresh();
       }
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "บันทึกไม่สำเร็จ ลองอีกครั้ง";
+      const message = clientErrorMessage(caught, "บันทึกไม่สำเร็จ ลองอีกครั้ง");
       const cleaned = await cleanupUploadedFiles().catch(() => false);
       setError(cleaned ? message : `${message} · ลบไฟล์ชั่วคราวไม่สำเร็จ กรุณาลองอีกครั้ง`);
       if (!code) setAttendance(initialAttendance ?? "maybe");
@@ -189,14 +192,17 @@ export function MemberEditor({ code, tripId, initialName, initialAvatarUrl, init
       {code && <input name="code" type="hidden" value={code}/>} {tripId && <input name="tripId" type="hidden" value={tripId}/>}
       <input name="avatarUrl" type="hidden" defaultValue={initialAvatarUrl ?? ""}/>
       {!code && <input name="signaturePath" type="hidden" value={attendance === "going" ? activeSignaturePath : ""} readOnly/>}
-      <label>ชื่อที่เพื่อนจะเห็น<input name="displayName" required maxLength={60} defaultValue={initialName} placeholder="เรียกเราว่าอะไรดี"/></label>
-      <label>รูปโปรไฟล์<select name="avatarType" value={avatarType} onChange={(event) => setAvatarType(event.target.value)}><option value="emoji">ตัวอักษรสีสดใส</option><option value="image">อัปโหลดรูป</option><option value="gif">อัปโหลด GIF</option></select></label>
-      {avatarType !== "emoji" && <label className="upload-box"><ImagePlus size={20}/> เลือกรูป {avatarType === "gif" ? "GIF" : "โปรไฟล์"}<input ref={avatarFile} type="file" accept={avatarType === "gif" ? "image/gif" : "image/png,image/jpeg,image/webp"} required={!initialAvatarUrl}/></label>}
-      {tripId && <label>การเข้าร่วม<select name="attendance" value={attendance} onChange={(event) => requestGoing(event.target.value)}><option value="going">ไปแน่นอน</option><option value="maybe">ยังไม่แน่ใจ</option><option value="not_going">ไปไม่ได้แล้ว</option></select></label>}
+      {isArchived && <div className="notice-box" role="status">ทริปนี้เก็บถาวรแล้ว โปรไฟล์และสถานะการเข้าร่วมจึงเป็นแบบอ่านอย่างเดียว</div>}
+      <fieldset disabled={isArchived || busy}>
+        <label>ชื่อที่เพื่อนจะเห็น<input name="displayName" required maxLength={60} defaultValue={initialName} placeholder="เรียกเราว่าอะไรดี"/></label>
+        <label>รูปโปรไฟล์<select name="avatarType" value={avatarType} onChange={(event) => setAvatarType(event.target.value)}><option value="emoji">ตัวอักษรสีสดใส</option><option value="image">อัปโหลดรูป</option><option value="gif">อัปโหลด GIF</option></select></label>
+        {avatarType !== "emoji" && <label className="upload-box"><ImagePlus size={20}/> เลือกรูป {avatarType === "gif" ? "GIF" : "โปรไฟล์"}<input ref={avatarFile} type="file" accept={avatarType === "gif" ? "image/gif" : "image/png,image/jpeg,image/webp"} required={!initialAvatarUrl}/></label>}
+        {tripId && <label>การเข้าร่วม<select name="attendance" value={attendance} onChange={(event) => requestGoing(event.target.value)}><option value="going">ไปแน่นอน</option><option value="maybe">ยังไม่แน่ใจ</option><option value="not_going">ไปไม่ได้แล้ว</option></select></label>}
+      </fieldset>
       {code && <small className="form-help">เข้าร่วมแล้วคุณจะเริ่มที่สถานะ “ยังไม่แน่ใจ” และเซ็นยืนยันได้ภายหลัง</small>}
       {!code && attendance === "going" && <small className="form-help">ลายเซ็นนี้ยืนยันว่าคุณตกลงจะไปทริปนี้</small>}
       {error && <div className="error-box" role="alert">{error}</div>}
-      <button className="button button-primary button-full" type="submit" disabled={busy}>{busy ? "กำลังบันทึก..." : code ? "เข้าร่วมทริป" : "บันทึกโปรไฟล์"}<ArrowRight size={17}/></button>
+      <button className="button button-primary button-full" type="submit" disabled={busy || isArchived}>{busy ? "กำลังบันทึก..." : code ? "เข้าร่วมทริป" : "บันทึกโปรไฟล์"}<ArrowRight size={17}/></button>
     </form>
     {signatureModalOpen && <div className="signature-modal-backdrop">
       <section className="signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title">
