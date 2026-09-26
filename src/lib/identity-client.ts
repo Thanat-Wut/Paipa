@@ -25,3 +25,10 @@ export function writePaipaIdentity(identity: PaipaIdentity): void {
     throw new Error("Unable to save Paipa identity in this browser");
   }
 }
+
+export function reconcilePaipaIdentity(serverIdentity: PaipaIdentity): PaipaIdentity {
+  const parsed = parsePaipaIdentity(serverIdentity);
+  if (!parsed) throw new Error("Invalid Paipa identity");
+  writePaipaIdentity(parsed);
+  return parsed;
+}

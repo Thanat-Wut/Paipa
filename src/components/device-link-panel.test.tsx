@@ -17,7 +17,7 @@ describe("DeviceLinkPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Link another device" }));
 
-    expect(await screen.findByText("01234567")).toBeInTheDocument();
-    expect(screen.getByText(/10/)).toBeInTheDocument();
+    expect(await screen.findByText("01234567")).toBeTruthy();
+    expect(screen.getByText(/10/)).toBeTruthy();
   });
 });

@@ -369,7 +369,7 @@ git commit -m "feat: add device link server actions"
 
 **Interfaces:**
 - `DeviceLinkPanel` uses `createDeviceLinkCode` on button submit and shows the raw code only in its local React state, the expiry time, and a clear “share this code once” message.
-- `IdentityBootstrap` starts in a choice state, retains the existing create-profile form, and has a redeem form for exactly eight digits. On successful redeem it calls `reconcilePaipaIdentity(result.identity)` before route replacement; it never calls `bootstrapIdentity` for the redeem path.
+- `IdentityBootstrap` keeps the existing create-profile form as the default path, adds a secondary `I already use Paipa` path, and has a redeem form for exactly eight digits. On successful redeem it calls `reconcilePaipaIdentity(result.identity)` before route replacement; it never calls `bootstrapIdentity` for the redeem path.
 
 - [ ] **Step 1: Implement the existing-device panel**
 
@@ -381,7 +381,7 @@ Add `<DeviceLinkPanel />` to the authenticated trips layout near the topbar or p
 
 - [ ] **Step 3: Add the first-use choice and redeem form**
 
-Preserve the existing create flow and copy. Remove the current mount-time auto-bootstrap so a stale local identity cannot bypass the choice screen. Add a button labeled `I already use Paipa`; accept the code with `inputMode="numeric"`, `pattern="[0-9]{8}"`, `maxLength={8}`, and client-side validation. On success call `reconcilePaipaIdentity`, then `router.replace(nextPath)` and `router.refresh()`. On failure leave both cookie and localStorage untouched.
+Preserve the existing create flow and copy as the default so existing first-use E2E flows remain valid. Remove the current mount-time auto-bootstrap, which lets a stale local identity bypass linking. Add a button labeled `I already use Paipa`; accept the code with `inputMode="numeric"`, `pattern="[0-9]{8}"`, `maxLength={8}`, and client-side validation. On success call `reconcilePaipaIdentity`, then `router.replace(nextPath)` and `router.refresh()`. On failure leave both cookie and localStorage untouched.
 
 - [ ] **Step 4: Add compact responsive styles and run UI tests**
 
