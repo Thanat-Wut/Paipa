@@ -8,9 +8,12 @@ declare
   v_secondary uuid := gen_random_uuid();
   v_other uuid := gen_random_uuid();
   v_trip uuid := gen_random_uuid();
+  v_signed_trip uuid := gen_random_uuid();
+  v_owner_trip uuid := gen_random_uuid();
   v_archived_trip uuid := gen_random_uuid();
   v_orphan_trip uuid := gen_random_uuid();
   v_signed_member_id uuid;
+  v_passive_member_id uuid;
   v_note uuid := gen_random_uuid();
   v_comment uuid := gen_random_uuid();
   v_poll uuid := gen_random_uuid();
@@ -21,6 +24,8 @@ declare
   v_expense uuid := gen_random_uuid();
   v_request uuid := gen_random_uuid();
   v_storage_name text;
+  v_payment_storage_name text;
+  v_expense_receipt_name text;
   v_before jsonb;
   v_after jsonb;
   v_result jsonb;
@@ -72,21 +77,42 @@ begin
   ) then
     raise exception 'trip_members has a trigger; cleanup must remain disabled';
   end if;
+  if not exists (
+    select 1 from pg_catalog.pg_constraint
+    where conrelid = 'public.trip_members'::pg_catalog.regclass
+      and confrelid = 'public.trips'::pg_catalog.regclass
+      and contype = 'f' and confdeltype = 'c'
+  ) or not exists (
+    select 1 from pg_catalog.pg_constraint
+    where conrelid = 'public.trip_members'::pg_catalog.regclass
+      and confrelid = 'public.profiles'::pg_catalog.regclass
+      and contype = 'f' and confdeltype = 'c'
+  ) then
+    raise exception 'trip_members outbound FK graph changed';
+  end if;
 
   insert into public.profiles(id, display_name) values
     (v_primary, 'M5.4 Primary'), (v_secondary, 'M5.4 Secondary'), (v_other, 'M5.4 Other');
   insert into public.trips(id, owner_id, name, start_date, end_date, status) values
     (v_trip, v_primary, 'M5.4 active', current_date, current_date + 1, 'planning'),
+    (v_signed_trip, v_primary, 'M5.4 signed', current_date, current_date + 1, 'planning'),
+    (v_owner_trip, v_primary, 'M5.4 owner', current_date, current_date + 1, 'planning'),
     (v_archived_trip, v_primary, 'M5.4 archived', current_date, current_date + 1, 'archived'),
     (v_orphan_trip, v_secondary, 'M5.4 secondary only', current_date, current_date + 1, 'planning');
   insert into public.trip_members(trip_id, user_id, display_name, role, attendance) values
     (v_trip, v_primary, 'M5.4 Primary', 'owner', 'maybe'),
     (v_trip, v_secondary, 'M5.4 Secondary', 'member', 'maybe'),
+    (v_signed_trip, v_primary, 'M5.4 Primary', 'owner', 'maybe'),
+    (v_owner_trip, v_primary, 'M5.4 Primary', 'owner', 'maybe'),
+    (v_owner_trip, v_secondary, 'M5.4 Secondary owner', 'owner', 'maybe'),
     (v_archived_trip, v_primary, 'M5.4 Primary', 'owner', 'maybe'),
     (v_archived_trip, v_secondary, 'M5.4 Secondary', 'member', 'maybe'),
     (v_orphan_trip, v_secondary, 'M5.4 Secondary', 'owner', 'maybe');
+  select id into v_passive_member_id
+  from public.trip_members
+  where trip_id = v_trip and user_id = v_secondary;
   insert into public.trip_members(trip_id, user_id, display_name, role, attendance, signature_path, commitment_signed_at)
-  values (v_trip, v_secondary, 'M5.4 Signed', 'member', 'going', v_secondary::text || '/m5-4.png', now())
+  values (v_signed_trip, v_secondary, 'M5.4 Signed', 'member', 'going', v_secondary::text || '/m5-4.png', now())
   returning id into v_signed_member_id;
 
   insert into public.contributions(trip_id, contributor_id) values
@@ -96,7 +122,7 @@ begin
     payment_method, payment_occurred_at, proof_path, note
   ) values (
     v_payment, v_trip, v_secondary, v_request, repeat('a', 64), 100,
-    'cash', now(), v_trip::text || '/payment-proof.png', 'M5.4 preserved payment'
+    'cash', now(), v_trip::text || '/' || v_secondary::text || '/m5-4-payment.png', 'M5.4 preserved payment'
   );
   insert into public.expenses(
     id, trip_id, title, amount, category, payment_source, created_by,
@@ -124,21 +150,29 @@ begin
   values (v_activity, v_trip, v_secondary, 'board_note_created', 'board_note', v_note);
   v_storage_name := v_secondary::text || '/m5-4.png';
   insert into storage.objects(bucket_id, name, owner_id) values ('signatures', v_storage_name, v_secondary::text);
+  v_payment_storage_name := v_trip::text || '/' || v_secondary::text || '/m5-4-payment.png';
+  insert into storage.objects(bucket_id, name, owner_id) values ('payment-proofs', v_payment_storage_name, v_secondary::text);
+  v_expense_receipt_name := v_trip::text || '/' || v_expense::text || '/550e8400-e29b-41d4-a716-446655440000.png';
+  update public.expenses set receipt_path = v_expense_receipt_name where id = v_expense;
+  insert into storage.objects(bucket_id, name, owner_id) values ('expense-receipts', v_expense_receipt_name, v_secondary::text);
 
   v_before := jsonb_build_object(
-    'contributions', (select count(*) from public.contributions where trip_id = v_trip),
-    'payments', (select count(*) from public.payment_submissions where trip_id = v_trip),
-    'expenses', (select count(*) from public.expenses where trip_id = v_trip),
-    'board_notes', (select count(*) from public.board_notes where trip_id = v_trip),
-    'board_comments', (select count(*) from public.board_note_comments c join public.board_notes n on n.id = c.note_id where n.trip_id = v_trip),
-    'board_likes', (select count(*) from public.board_note_likes l join public.board_notes n on n.id = l.note_id where n.trip_id = v_trip),
-    'chat', (select count(*) from public.chat_messages where trip_id = v_trip),
-    'polls', (select count(*) from public.polls where trip_id = v_trip),
-    'poll_options', (select count(*) from public.poll_options where poll_id = v_poll),
-    'poll_votes', (select count(*) from public.poll_votes where poll_id = v_poll),
-    'plan', (select count(*) from public.trip_plan_items where trip_id = v_trip),
-    'activity', (select count(*) from public.trip_activities where trip_id = v_trip),
-    'storage', (select count(*) from storage.objects where bucket_id = 'signatures' and name = v_storage_name)
+    'profiles', (select jsonb_agg(to_jsonb(p) order by p.id) from public.profiles p where p.id in (v_primary, v_secondary, v_other)),
+    'trips', (select jsonb_agg(to_jsonb(t) order by t.id) from public.trips t where t.id in (v_trip, v_signed_trip, v_owner_trip, v_archived_trip, v_orphan_trip)),
+    'trip_members', (select jsonb_agg(to_jsonb(m) order by m.id) from public.trip_members m where m.id <> v_passive_member_id and m.trip_id in (v_trip, v_signed_trip, v_owner_trip, v_archived_trip, v_orphan_trip)),
+    'contributions', (select jsonb_agg(to_jsonb(c) order by c.id) from public.contributions c where c.trip_id = v_trip),
+    'payments', (select jsonb_agg(to_jsonb(p) order by p.id) from public.payment_submissions p where p.trip_id = v_trip),
+    'expenses', (select jsonb_agg(to_jsonb(e) order by e.id) from public.expenses e where e.trip_id = v_trip),
+    'board_notes', (select jsonb_agg(to_jsonb(n) order by n.id) from public.board_notes n where n.trip_id = v_trip),
+    'board_comments', (select jsonb_agg(to_jsonb(c) order by c.id) from public.board_note_comments c join public.board_notes n on n.id = c.note_id where n.trip_id = v_trip),
+    'board_likes', (select jsonb_agg(to_jsonb(l) order by l.note_id, l.profile_id) from public.board_note_likes l join public.board_notes n on n.id = l.note_id where n.trip_id = v_trip),
+    'chat', (select jsonb_agg(to_jsonb(c) order by c.id) from public.chat_messages c where c.trip_id = v_trip),
+    'polls', (select jsonb_agg(to_jsonb(p) order by p.id) from public.polls p where p.trip_id = v_trip),
+    'poll_options', (select jsonb_agg(to_jsonb(o) order by o.id) from public.poll_options o where o.poll_id = v_poll),
+    'poll_votes', (select jsonb_agg(to_jsonb(v) order by v.profile_id) from public.poll_votes v where v.poll_id = v_poll),
+    'plan', (select jsonb_agg(to_jsonb(i) order by i.id) from public.trip_plan_items i where i.trip_id = v_trip),
+    'activity', (select jsonb_agg(to_jsonb(a) order by a.id) from public.trip_activities a where a.trip_id = v_trip),
+    'storage', (select jsonb_agg(to_jsonb(o) order by o.bucket_id, o.name) from storage.objects o where (o.bucket_id, o.name) in (('signatures', v_storage_name), ('payment-proofs', v_payment_storage_name), ('expense-receipts', v_expense_receipt_name)))
   );
 
   insert into public.device_link_tokens(profile_id, token_hash, expires_at)
@@ -152,6 +186,9 @@ begin
   end if;
   if not exists (select 1 from public.trip_members where id = v_signed_member_id) then
     raise exception 'meaningful signed membership was removed';
+  end if;
+  if not exists (select 1 from public.trip_members where trip_id = v_owner_trip and user_id = v_secondary and role = 'owner') then
+    raise exception 'owner membership was removed';
   end if;
   if not exists (select 1 from public.trip_members where trip_id = v_archived_trip and user_id = v_secondary) then
     raise exception 'archived duplicate membership was removed';
@@ -168,19 +205,22 @@ begin
   end if;
 
   v_after := jsonb_build_object(
-    'contributions', (select count(*) from public.contributions where trip_id = v_trip),
-    'payments', (select count(*) from public.payment_submissions where trip_id = v_trip),
-    'expenses', (select count(*) from public.expenses where trip_id = v_trip),
-    'board_notes', (select count(*) from public.board_notes where trip_id = v_trip),
-    'board_comments', (select count(*) from public.board_note_comments c join public.board_notes n on n.id = c.note_id where n.trip_id = v_trip),
-    'board_likes', (select count(*) from public.board_note_likes l join public.board_notes n on n.id = l.note_id where n.trip_id = v_trip),
-    'chat', (select count(*) from public.chat_messages where trip_id = v_trip),
-    'polls', (select count(*) from public.polls where trip_id = v_trip),
-    'poll_options', (select count(*) from public.poll_options where poll_id = v_poll),
-    'poll_votes', (select count(*) from public.poll_votes where poll_id = v_poll),
-    'plan', (select count(*) from public.trip_plan_items where trip_id = v_trip),
-    'activity', (select count(*) from public.trip_activities where trip_id = v_trip),
-    'storage', (select count(*) from storage.objects where bucket_id = 'signatures' and name = v_storage_name)
+    'profiles', (select jsonb_agg(to_jsonb(p) order by p.id) from public.profiles p where p.id in (v_primary, v_secondary, v_other)),
+    'trips', (select jsonb_agg(to_jsonb(t) order by t.id) from public.trips t where t.id in (v_trip, v_signed_trip, v_owner_trip, v_archived_trip, v_orphan_trip)),
+    'trip_members', (select jsonb_agg(to_jsonb(m) order by m.id) from public.trip_members m where m.id <> v_passive_member_id and m.trip_id in (v_trip, v_signed_trip, v_owner_trip, v_archived_trip, v_orphan_trip)),
+    'contributions', (select jsonb_agg(to_jsonb(c) order by c.id) from public.contributions c where c.trip_id = v_trip),
+    'payments', (select jsonb_agg(to_jsonb(p) order by p.id) from public.payment_submissions p where p.trip_id = v_trip),
+    'expenses', (select jsonb_agg(to_jsonb(e) order by e.id) from public.expenses e where e.trip_id = v_trip),
+    'board_notes', (select jsonb_agg(to_jsonb(n) order by n.id) from public.board_notes n where n.trip_id = v_trip),
+    'board_comments', (select jsonb_agg(to_jsonb(c) order by c.id) from public.board_note_comments c join public.board_notes n on n.id = c.note_id where n.trip_id = v_trip),
+    'board_likes', (select jsonb_agg(to_jsonb(l) order by l.note_id, l.profile_id) from public.board_note_likes l join public.board_notes n on n.id = l.note_id where n.trip_id = v_trip),
+    'chat', (select jsonb_agg(to_jsonb(c) order by c.id) from public.chat_messages c where c.trip_id = v_trip),
+    'polls', (select jsonb_agg(to_jsonb(p) order by p.id) from public.polls p where p.trip_id = v_trip),
+    'poll_options', (select jsonb_agg(to_jsonb(o) order by o.id) from public.poll_options o where o.poll_id = v_poll),
+    'poll_votes', (select jsonb_agg(to_jsonb(v) order by v.profile_id) from public.poll_votes v where v.poll_id = v_poll),
+    'plan', (select jsonb_agg(to_jsonb(i) order by i.id) from public.trip_plan_items i where i.trip_id = v_trip),
+    'activity', (select jsonb_agg(to_jsonb(a) order by a.id) from public.trip_activities a where a.trip_id = v_trip),
+    'storage', (select jsonb_agg(to_jsonb(o) order by o.bucket_id, o.name) from storage.objects o where (o.bucket_id, o.name) in (('signatures', v_storage_name), ('payment-proofs', v_payment_storage_name), ('expense-receipts', v_expense_receipt_name)))
   );
   if v_before <> v_after then raise exception 'historical data changed: before %, after %', v_before, v_after; end if;
   if (select used_at from public.device_link_tokens where token_hash = repeat('a', 64)) is null then
