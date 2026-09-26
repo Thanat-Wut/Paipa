@@ -20,6 +20,18 @@
 - Final regression: lint, typecheck, SQL transaction integration (rollback), 48 unit tests, full Playwright E2E, and production build all pass.
 - Soft identity is intentionally not strong authentication: a client can create or spoof a UUID identity. This is an accepted M1 limitation and should be considered before adding sensitive capabilities.
 
-## Scope
+## M5.1 trip wrap-up, summary, and safe archive
 
-M2 and later features have not started.
+- Current trip members have a private `/trips/[tripId]/summary` route that combines trip details, attendance, itinerary, poll outcomes, and high-level fund totals from the existing server-authoritative read models.
+- Copy/share receives an explicit public-safe projection. It excludes member names, plan descriptions, all financial values, signatures, proofs, receipts, private storage paths, and audit reasons. Print/PDF uses the private member view and hides application navigation/actions.
+- Owners can preview archive impact from Summary. Archiving keeps Summary available, redirects back to it, and leaves Board, Chat, Poll, Plan, and Money read-only through the existing archived-state guards.
+- The trips index separates active and archived trips; archived cards open their persistent summary.
+- Settings now explains archive versus hard delete truthfully. Trips with payment or expense history cannot be hard-deleted and are directed to archive instead.
+- Eligible hard delete remains authorized by the existing RPC. The server captures trip-scoped signature paths, deletes the trip, then removes those signature objects; profile-scoped avatars are intentionally retained.
+- No database migration or remote DDL was required for M5.1.
+- Unit coverage validates attendance totals, tied/no-vote poll outcomes, public-safe export sanitization, delete eligibility, and stable delete errors. The real-Supabase Playwright flow validates owner/member access, outsider denial, DB persistence, reload, archive persistence/read-only behavior, protected-history messaging, mobile overflow, eligible deletion, signature cleanup, and zero fixture residue.
+
+## Current scope
+
+- M5.1 is implemented. M5.2 has not started.
+- Soft identity is still an accepted trust limitation and is not suitable for high-sensitivity authorization without a future authentication upgrade.

@@ -6,6 +6,9 @@ import { redirect } from "next/navigation";
 import { requireIdentity } from "@/lib/identity-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createTripSchema, formString, inviteCodeSchema, joinTripSchema, updateMemberSchema } from "@/lib/trip";
+import { mapDeleteTripError } from "@/lib/trip-summary";
+import { loadTripDeletionState } from "@/lib/trip-summary-server";
+import { isOwnedStoragePath } from "@/lib/storage-path";
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -136,18 +139,58 @@ export async function updateTrip(form: FormData) {
 
 export async function archiveTrip(form: FormData) {
   const tripId = formString(form, "tripId");
-  const path = `/trips/${tripId}/settings`;
+  const path = `/trips/${tripId}/summary`;
   const identity = await requireIdentity(path);
   const { error } = await createAdminClient().rpc("archive_trip", { p_actor_id: identity.id, p_trip_id: tripId });
   if (error) fail(path, error.message);
-  redirect("/trips");
+  redirect(path);
 }
 
 export async function deleteTrip(form: FormData) {
   const tripId = formString(form, "tripId");
   const path = `/trips/${tripId}/settings`;
   const identity = await requireIdentity(path);
-  const { error } = await createAdminClient().rpc("delete_trip", { p_actor_id: identity.id, p_trip_id: tripId });
-  if (error) fail(path, error.message);
+  const supabase = createAdminClient();
+  const { data: trip, error: tripError } = await supabase
+    .from("trips")
+    .select("id")
+    .eq("id", tripId)
+    .eq("owner_id", identity.id)
+    .maybeSingle();
+  if (tripError || !trip) fail(path, "เฉพาะเจ้าของทริปเท่านั้นที่ลบทริปได้");
+
+  const deletionState = await loadTripDeletionState(supabase, tripId);
+  if (!deletionState.allowed) {
+    const message = deletionState.reason === "expense_history"
+      ? "ลบทริปนี้ไม่ได้ เพราะมีประวัติค่าใช้จ่ายที่ต้องเก็บไว้ กรุณาเก็บทริปแทน"
+      : deletionState.reason === "payment_history"
+        ? "ลบทริปนี้ไม่ได้ เพราะมีประวัติการชำระเงินที่ต้องเก็บไว้ กรุณาเก็บทริปแทน"
+        : "ลบทริปนี้ไม่ได้ เพราะมีประวัติการเงินที่ต้องเก็บไว้ กรุณาเก็บทริปแทน";
+    fail(path, message);
+  }
+
+  const { data: members, error: memberError } = await supabase
+    .from("trip_members")
+    .select("user_id, signature_path")
+    .eq("trip_id", tripId);
+  if (memberError) fail(path, "ตรวจสอบลายเซ็นของทริปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  const signaturePaths = (members ?? [])
+    .filter((member) => typeof member.signature_path === "string" && isOwnedStoragePath("signature", member.user_id, member.signature_path))
+    .map((member) => member.signature_path as string);
+
+  const { error } = await supabase.rpc("delete_trip", { p_actor_id: identity.id, p_trip_id: tripId });
+  if (error) fail(path, mapDeleteTripError(error));
+  if (signaturePaths.length) {
+    const { data: remainingMembers, error: remainingError } = await supabase
+      .from("trip_members")
+      .select("signature_path")
+      .in("signature_path", [...new Set(signaturePaths)]);
+    if (remainingError) fail("/trips", "ลบทริปแล้ว แต่ตรวจสอบไฟล์ลายเซ็นที่ยังใช้งานไม่สำเร็จ กรุณาติดต่อผู้ดูแลระบบ");
+    const stillReferenced = new Set((remainingMembers ?? []).map((member) => member.signature_path).filter((value): value is string => typeof value === "string"));
+    const removablePaths = [...new Set(signaturePaths)].filter((value) => !stillReferenced.has(value));
+    if (!removablePaths.length) redirect("/trips");
+    const { error: cleanupError } = await supabase.storage.from("signatures").remove(removablePaths);
+    if (cleanupError) fail("/trips", "ลบทริปแล้ว แต่ล้างไฟล์ลายเซ็นบางส่วนไม่สำเร็จ กรุณาติดต่อผู้ดูแลระบบ");
+  }
   redirect("/trips");
 }
