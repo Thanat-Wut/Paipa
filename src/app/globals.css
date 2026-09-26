@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-:root { --ink:#1e293b; --muted:#64748b; --blue:#38bdf8; --deep:#0284c7; --pink:#f472b6; --cream:#fffdfa; --line:#dceefa; }
+:root { --font-prompt:"Prompt","Noto Sans Thai",Tahoma,Arial,sans-serif; --font-fredoka:"Fredoka","Arial Rounded MT Bold",Arial,sans-serif; --ink:#1e293b; --muted:#64748b; --blue:#38bdf8; --deep:#0284c7; --pink:#f472b6; --cream:#fffdfa; --line:#dceefa; }
 * { box-sizing:border-box; }
 html { scroll-behavior:smooth; }
 body { margin:0; color:var(--ink); background-color:#eaf6ff; background-image:radial-gradient(#bae6fd 1.3px,transparent 1.3px),linear-gradient(180deg,#dcf0fa 0%,#f0f8ff 45%,#e6f4fb 100%); background-size:28px 28px,100% 100%; background-attachment:fixed; font-family:var(--font-prompt),Arial,"Noto Sans Thai",sans-serif; }

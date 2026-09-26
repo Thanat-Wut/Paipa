@@ -35,7 +35,7 @@ describe("identity bootstrap action", () => {
   it("surfaces profile bootstrap failures without setting a cookie", async () => {
     upsert.mockResolvedValue({ error: { message: "database unavailable" } });
     const result = await bootstrapIdentity({ id: "550e8400-e29b-41d4-a716-446655440000", displayName: "Nut" });
-    expect(result).toEqual({ ok: false, message: "database unavailable" });
+    expect(result).toEqual({ ok: false, message: "สร้างโปรไฟล์ไม่สำเร็จ" });
     expect(setCookie).not.toHaveBeenCalled();
   });
 });

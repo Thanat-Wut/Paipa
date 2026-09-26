@@ -694,7 +694,7 @@ describe("M2.3 payment submit and private proof routes", () => {
     const response = await post(paymentForm());
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toMatchObject({ code: "22000", message: "insert failed" });
+    expect(await response.json()).toEqual({ code: "PAYMENT_SUBMISSION_FAILED" });
     expect(removeMock).toHaveBeenCalledWith([expect.stringMatching(new RegExp(`^${TRIP_ID}/${MEMBER_ID}/`))]);
   });
 
@@ -707,10 +707,7 @@ describe("M2.3 payment submit and private proof routes", () => {
 
     expect(response.status).toBe(500);
     expect((await response.json()).code).toBe("STORAGE_CLEANUP_FAILED");
-    expect(errorSpy).toHaveBeenCalledWith("Payment proof cleanup failed", expect.objectContaining({
-      submissionId: expect.any(String),
-      objectPath: expect.any(String),
-    }));
+    expect(errorSpy).toHaveBeenCalledWith("Payment proof cleanup failed", expect.objectContaining({ submissionId: expect.any(String) }));
     errorSpy.mockRestore();
   });
 

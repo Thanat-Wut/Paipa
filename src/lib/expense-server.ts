@@ -118,8 +118,9 @@ export async function removeExpenseReceipt(supabase: ReturnType<typeof createAdm
   return !error;
 }
 
-export function storageCleanupFailure(expenseId: string, path: string) {
-  console.error("Expense receipt cleanup failed", { expenseId, path });
+export function storageCleanupFailure(expenseId: string, _path: string) {
+  void _path;
+  console.error("Expense receipt cleanup failed", { expenseId });
   return expenseJsonError(500, "STORAGE_CLEANUP_FAILED");
 }
 
@@ -127,7 +128,8 @@ export function isDefinitiveExpenseDatabaseFailure(error: { code?: string }) {
   return typeof error.code === "string" && /^[0-9A-Z]{5}$/.test(error.code);
 }
 
-export function expenseOutcomeUnknown(operation: string, expenseId: string, path: string | null) {
-  console.error("Expense operation result is unknown", { operation, expenseId, path });
+export function expenseOutcomeUnknown(operation: string, expenseId: string, _path: string | null) {
+  void _path;
+  console.error("Expense operation result is unknown", { operation, expenseId });
   return expenseJsonError(503, "EXPENSE_RESULT_UNKNOWN");
 }

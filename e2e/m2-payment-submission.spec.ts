@@ -278,7 +278,7 @@ test("real M2.3 payment upload, idempotency, access control, and cleanup", async
       proof: { name: "compensation.png", mimeType: "image/png", buffer: PNG_BYTES },
     }));
     expect(compensation.status()).toBe(500);
-    expect(await compensation.json()).toMatchObject({ code: "23503" });
+    expect(await compensation.json()).toEqual({ code: "PAYMENT_SUBMISSION_FAILED" });
     expect(await countSubmissions(admin, tripId, compensationKey)).toBe(0);
     expect(await listTree(admin, tripId)).toEqual(compensationPathsBefore);
 

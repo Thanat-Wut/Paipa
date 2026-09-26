@@ -6,6 +6,7 @@ import { normalizeTripId, readBoardTrip } from "@/lib/board-server";
 import { encodeSse, projectRealtimeEvent, REALTIME_SSE_HEADERS, type RealtimeEventType, type RealtimePayload } from "@/lib/realtime-server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type RealtimeScope = "board" | "chat" | "polls" | "plan" | "activity";
 

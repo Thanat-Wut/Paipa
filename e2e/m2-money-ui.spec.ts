@@ -473,7 +473,8 @@ test("real M2.8 Money UI completes payment and expense lifecycles with Supabase"
     const ownerMobilePage = await ownerContext.newPage();
     await ownerMobilePage.setViewportSize({ width: 390, height: 844 });
     await ownerMobilePage.goto(moneyPath);
-    await expect(ownerMobilePage.locator(".bottom-nav").getByRole("link", { name: "Money" })).toBeVisible();
+    await ownerMobilePage.getByRole("button", { name: "เพิ่มเติม" }).click();
+    await expect(ownerMobilePage.getByRole("link", { name: "Money" })).toBeVisible();
     const mobileReviewQueue = ownerMobilePage.getByRole("region", { name: "คิวรายการรอตรวจสอบ" });
     await expect(mobileReviewQueue).toBeVisible();
     await expect(mobileReviewQueue.locator(".money-payment-card")).toHaveCount(1);
@@ -490,7 +491,8 @@ test("real M2.8 Money UI completes payment and expense lifecycles with Supabase"
     const memberMobilePage = await memberContext.newPage();
     await memberMobilePage.setViewportSize({ width: 390, height: 844 });
     await memberMobilePage.goto(moneyPath);
-    await expect(memberMobilePage.locator(".bottom-nav").getByRole("link", { name: "Money" })).toBeVisible();
+    await memberMobilePage.getByRole("button", { name: "เพิ่มเติม" }).click();
+    await expect(memberMobilePage.getByRole("link", { name: "Money" })).toBeVisible();
     await submitCashPayment(memberMobilePage, "50.25");
     const { data: mobileCashRows, error: mobileCashError } = await admin.from("payment_submissions")
       .select("id,status,proof_path,payment_occurred_at").eq("trip_id", tripId!).eq("contributor_id", member.id).eq("amount", "50.25");

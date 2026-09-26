@@ -9,6 +9,7 @@ import { createTripSchema, formString, inviteCodeSchema, joinTripSchema, updateM
 import { mapDeleteTripError } from "@/lib/trip-summary";
 import { loadTripDeletionState } from "@/lib/trip-summary-server";
 import { isOwnedStoragePath } from "@/lib/storage-path";
+import { safeServerErrorMessage } from "@/lib/server-error";
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -31,7 +32,7 @@ export async function createTrip(form: FormData) {
     p_end_date: input.data.endDate, p_budget_per_person: input.data.budgetPerPerson,
     p_max_members: input.data.maxMembers,
   });
-  if (error || !data) fail("/trips", error?.message ?? "สร้างทริปไม่สำเร็จ");
+  if (error || !data) fail("/trips", safeServerErrorMessage(error, "สร้างทริปไม่สำเร็จ"));
   redirect(`/trips/${data}`);
 }
 
@@ -45,7 +46,7 @@ export async function createInvite(form: FormData) {
   const { error } = await supabase.rpc("create_invite", {
     p_actor_id: identity.id, p_trip_id: tripId, p_code: code, p_expires_at: expiresAt,
   });
-  if (error) fail(path, error.message);
+  if (error) fail(path, safeServerErrorMessage(error, "สร้างลิงก์เชิญไม่สำเร็จ"));
   revalidatePath(path);
 }
 
@@ -64,7 +65,7 @@ export async function joinTrip(form: FormData) {
     p_code: code, p_display_name: input.data.displayName,
     p_avatar_type: input.data.avatarType, p_avatar_url: input.data.avatarUrl ?? "",
   });
-  if (error || !data) return { ok: false as const, message: error?.message ?? "เข้าร่วมทริปไม่สำเร็จ" };
+  if (error || !data) return { ok: false as const, message: safeServerErrorMessage(error, "เข้าร่วมทริปไม่สำเร็จ") };
   revalidatePath(`/trips/${data}`);
   return { ok: true as const, tripId: data };
 }
@@ -90,7 +91,7 @@ export async function updateMember(form: FormData) {
     p_avatar_type: input.data.avatarType, p_avatar_url: input.data.avatarUrl ?? "",
     p_signature_path: input.data.signaturePath ?? "", p_attendance: attendance,
   });
-  if (error) return { ok: false as const, message: error.message };
+  if (error) return { ok: false as const, message: safeServerErrorMessage(error, "บันทึกข้อมูลสมาชิกไม่สำเร็จ") };
   if (typeof oldSignaturePath === "string" && oldSignaturePath) {
     const { error: cleanupError } = await supabase.storage.from("signatures").remove([oldSignaturePath]);
     if (cleanupError) {
@@ -107,7 +108,7 @@ export async function leaveTrip(form: FormData) {
   const identity = await requireIdentity(`/trips/${tripId}/members`);
   const supabase = createAdminClient();
   const { data: signaturePath, error } = await supabase.rpc("leave_trip", { p_actor_id: identity.id, p_trip_id: tripId });
-  if (error) fail(`/trips/${tripId}/members`, error.message);
+  if (error) fail(`/trips/${tripId}/members`, safeServerErrorMessage(error, "ออกจากทริปไม่สำเร็จ"));
   if (typeof signaturePath === "string" && signaturePath) {
     const { error: cleanupError } = await supabase.storage.from("signatures").remove([signaturePath]);
     if (cleanupError) fail(`/trips/${tripId}/members`, "ออกจากทริปแล้ว แต่ลบลายเซ็นเดิมจาก Storage ไม่สำเร็จ");
@@ -133,7 +134,7 @@ export async function updateTrip(form: FormData) {
     p_start_date: input.data.startDate, p_end_date: input.data.endDate,
     p_budget_per_person: input.data.budgetPerPerson, p_max_members: input.data.maxMembers,
   });
-  if (error) fail(path, error.message);
+  if (error) fail(path, safeServerErrorMessage(error, "บันทึกข้อมูลทริปไม่สำเร็จ"));
   revalidatePath(`/trips/${tripId}`);
 }
 
@@ -142,7 +143,7 @@ export async function archiveTrip(form: FormData) {
   const path = `/trips/${tripId}/summary`;
   const identity = await requireIdentity(path);
   const { error } = await createAdminClient().rpc("archive_trip", { p_actor_id: identity.id, p_trip_id: tripId });
-  if (error) fail(path, error.message);
+  if (error) fail(path, safeServerErrorMessage(error, "เก็บทริปไม่สำเร็จ"));
   redirect(path);
 }
 

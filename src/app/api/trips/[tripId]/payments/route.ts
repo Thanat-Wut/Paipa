@@ -117,8 +117,9 @@ function parsePaymentForm(form: FormData) {
   };
 }
 
-function cleanupFailed(submissionId: string, objectPath: string) {
-  console.error("Payment proof cleanup failed", { submissionId, objectPath });
+function cleanupFailed(submissionId: string, _objectPath: string) {
+  void _objectPath;
+  console.error("Payment proof cleanup failed", { submissionId });
   return jsonError(500, "STORAGE_CLEANUP_FAILED");
 }
 
@@ -350,10 +351,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
       const resubmissionError = mapResubmissionInsertError(insertError);
       if (resubmissionError) return jsonError(resubmissionError.status, resubmissionError.code);
     }
-    return Response.json({
-      code: insertError.code ?? "PAYMENT_SUBMISSION_FAILED",
-      message: insertError.message,
-    }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
+    return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
   }
   return jsonError(500, "PAYMENT_SUBMISSION_FAILED");
 }

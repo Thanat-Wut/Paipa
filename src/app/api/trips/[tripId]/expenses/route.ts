@@ -158,8 +158,9 @@ async function removeUploadedReceipt(supabase: ReturnType<typeof createAdminClie
   return !error;
 }
 
-function cleanupFailure(expenseId: string, path: string) {
-  console.error("Expense receipt cleanup failed", { expenseId, path });
+function cleanupFailure(expenseId: string, _path: string) {
+  void _path;
+  console.error("Expense receipt cleanup failed", { expenseId });
   return jsonError(500, "STORAGE_CLEANUP_FAILED");
 }
 

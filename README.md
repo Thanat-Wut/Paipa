@@ -1,29 +1,57 @@
 # Paipa ☁️
 
-Paipa M1 is a shared trip planner built with Next.js and Supabase PostgreSQL/Storage. The original TripMate HTML file remains a visual reference.
+Paipa (ไปป่ะ?) is a shared trip-planning room for a small group: create a Trip, invite people, collect attendance, collaborate on a Board/Chat/Poll/Plan, track shared Money, and archive a truthful Summary when the trip is done.
 
-## Identity model
+## Stack and runtime
 
-On first use, a person enters a display name. The browser creates a UUID with `crypto.randomUUID()` and stores `{ id, displayName }` in `localStorage`. Names may repeat; the UUID is the profile identity and is reused after reloads on that browser.
+- Next.js 16 App Router, React 19, TypeScript, and Node.js Route Handlers.
+- Supabase PostgreSQL, Storage, and Realtime.
+- The application uses a server-only Supabase client with the service key. Browser code talks to the Next.js app, not directly to Supabase.
+- Realtime is an authorized, long-lived Node.js SSE response that subscribes to Supabase Realtime, emits sanitized events, and lets the browser refetch authoritative data. The deployment platform must support streaming responses, connection cleanup, and keepalives.
 
-This is a soft identity for the M1 prototype, not secure authentication. It does not use Supabase Auth, email, password, or OAuth. A person's local identity is not recoverable on another device.
+## Identity and privacy model
 
-Joining an invite creates a `maybe` membership without a signature. A member signs only when confirming `going`; leaving `going` clears the active commitment and the server removes its private Storage object.
+Paipa intentionally uses Soft Identity instead of Supabase Auth. On first use, the browser creates a UUID and stores `{ id, displayName }` in localStorage; the server validates the UUID against `profiles` and sets an httpOnly `paipa_identity_id` cookie. A fresh browser or missing/invalid cookie must bootstrap again. A local UUID is not account recovery and remains an accepted MVP spoofability limitation.
 
-## Start locally
+All Trip reads and mutations are authorized server-side. Private signatures, payment proofs, and expense receipts are stored in private buckets and are served only through authorization-checked Route Handlers. Avatars are the intentionally public profile-image bucket.
 
-1. Install dependencies with `npm install`.
-2. Apply the migrations in `supabase/migrations/` to the project's database.
-3. Copy `.env.example` to `.env.local` and fill in the Supabase URL.
-4. Set the server-only `SUPABASE_SECRET_KEY` in the ignored `.env.local` file or process environment. Never expose this key with a `NEXT_PUBLIC_` variable. The publishable key is not used by the M1 application flow.
-5. Run `npm run dev`.
+## Local setup
 
-The server-only key is used by Next.js Server Actions and Route Handlers for database and Storage access. It is required for local use and the real Playwright flow.
+1. Install dependencies: `npm ci`.
+2. Copy `.env.example` to `.env.local`.
+3. Set `NEXT_PUBLIC_SUPABASE_URL` and the server-only `SUPABASE_SECRET_KEY`.
+4. Link the intended Supabase project with the Supabase CLI and apply the reviewed migrations in `supabase/migrations/`.
+5. Start development: `npm run dev`.
 
-The one-time `npm run cleanup:confirmed-fixture` command is guarded to the single previously confirmed test profile, trip, invite, membership, Auth user, and two signature objects. It aborts if current rows or Storage contents differ from that exact fixture.
+The app currently requires `NEXT_PUBLIC_SUPABASE_URL` (or the optional server-only `SUPABASE_URL`) and `SUPABASE_SECRET_KEY` for server operations. Missing values fail clearly at the server boundary; they are never sent to the browser. See `.env.example` for the optional Playwright overrides `PAIPA_E2E_BASE_URL` and `PAIPA_E2E_PORT`.
 
-## Verify
+## Supabase workflow
 
-Run `npm test`, `npm run lint`, `npm run typecheck`, `npm run test:e2e`, and `npm run build`. The SQL integration script is `supabase/tests/m1_transaction.sql` and runs inside a transaction that rolls back its fixtures.
+- Local migrations: `supabase/migrations/`.
+- Linked history check: `npx supabase migration list --linked`.
+- SQL acceptance files: `supabase/tests/`. Each suite is transaction-scoped or read-only and should be run against the intended disposable/dev project, for example `npx supabase db query --linked --file supabase/tests/m4_3_activity.sql`.
+- Do not edit or replay an already-applied migration. A new schema change requires a reviewed additive migration and explicit remote DDL approval.
 
-Money, Board, Chat, Vote, and planning features remain out of scope for M1.
+## Verification commands
+
+```text
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run start -- --hostname 127.0.0.1 --port 3000
+npm run test:e2e
+```
+
+The Playwright suite uses real Next.js requests, the linked Supabase database, and Supabase Storage. It is not a mock-only suite. Remove run-created fixtures after verification and never commit generated reports, screenshots, `.env` files, or database exports.
+
+## Production release
+
+Use the executable [deployment checklist](docs/DEPLOYMENT_CHECKLIST.md). The production command is `npm run start` after `npm run build`; deploy to a Node-capable host with a documented timeout/buffering policy for the SSE route. A successful build alone is not a release sign-off: perform an authorized SSE smoke test and the mobile, desktop, privacy, and archive checks in the checklist.
+
+## Known MVP limitations
+
+- Soft Identity is device-local, spoofable by UUID, and has no account recovery.
+- There is no Supabase Auth, email, push, or offline-first mode.
+- There are no Maps, Weather, AI itinerary, booking, calendar-sync, analytics, or admin-dashboard features.
+- Rate limiting and abuse protection are deployment-level/future hardening concerns; current database authorization and input/idempotency guards are the MVP boundary.
