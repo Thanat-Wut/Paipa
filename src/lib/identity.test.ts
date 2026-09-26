@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { createPaipaIdentity, parsePaipaIdentity } from "./identity";
-import { readPaipaIdentity, writePaipaIdentity } from "./identity-client";
+import { readPaipaIdentity, reconcilePaipaIdentity, writePaipaIdentity } from "./identity-client";
 
 describe("Paipa identity", () => {
   beforeEach(() => {
@@ -61,5 +61,14 @@ describe("Paipa identity", () => {
   it("refuses to persist an invalid identity", () => {
     expect(() => writePaipaIdentity({ id: "not-a-uuid", displayName: "Nut" })).toThrow("Invalid Paipa identity");
     expect(localStorage.getItem("paipa_identity")).toBeNull();
+  });
+
+  it("replaces stale secondary localStorage with the successful primary identity", () => {
+    const secondary = { id: "550e8400-e29b-41d4-a716-446655440000", displayName: "Secondary" };
+    const primary = { id: "550e8400-e29b-41d4-a716-446655440001", displayName: "Primary" };
+    writePaipaIdentity(secondary);
+
+    expect(reconcilePaipaIdentity(primary)).toEqual(primary);
+    expect(readPaipaIdentity()).toEqual(primary);
   });
 });

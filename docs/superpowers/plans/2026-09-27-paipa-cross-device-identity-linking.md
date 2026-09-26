@@ -181,7 +181,7 @@ git commit -m "test: specify device linking actions and UI"
 
 **Files:**
 - Create: `supabase/tests/m5_4_device_linking.sql`
-- Test: `supabase/migrations/<CLI-generated m5_4 migration>`
+- Test: `supabase/migrations/20260926173804_m5_4_cross_device_identity_linking.sql`
 
 **Interfaces:**
 - The SQL test will call `public.redeem_device_link(v_secondary, v_hash)` and assert the returned JSON fields.
@@ -205,15 +205,15 @@ if exists (
 ) then raise exception 'trip_members has a trigger; cleanup must remain disabled'; end if;
 ```
 
-The test also asserts RLS and privileges: `relrowsecurity` is true; `has_table_privilege('anon', ..., 'select')` and `has_table_privilege('authenticated', ..., 'select')` are false; `has_function_privilege('public', 'public.redeem_device_link(uuid,text)', 'execute')`, `has_function_privilege('anon', ...)`, and `has_function_privilege('authenticated', ...)` are false; `has_function_privilege('service_role', ..., 'execute')` is true.
+The test also asserts RLS and privileges: `relrowsecurity` is true; `has_table_privilege` is false for `PUBLIC`, `anon`, and `authenticated` for each of `select`, `insert`, `update`, and `delete`; the function ACL expanded with `pg_catalog.aclexplode` contains no `PUBLIC` execute grant; `has_function_privilege` is false for `anon` and `authenticated` and true for `service_role`.
 
-The fixture creates a passive duplicate on a planning Trip, a meaningful signed duplicate, an owner duplicate, a duplicate on an archived Trip, and a Trip where only the secondary membership exists. It snapshots row counts/IDs and relevant values from `contributions`, `payment_submissions`, `payment_submission_events` when present, `expenses`, `expense_events` when present, `board_notes`, `board_note_comments`, `board_note_likes`, `chat_messages`, `polls`, `poll_options`, `poll_votes`, `trip_plan_items`, `trip_activities`, and `storage.objects`, redeems a valid hashed code, and asserts that every snapshot is unchanged. Only the passive secondary membership on the active Trip may disappear; signed/committed/owner/archived/orphan memberships must remain.
+The fixture creates a passive duplicate on a planning Trip, a meaningful signed duplicate, an owner duplicate, a duplicate on an archived Trip, and a Trip where only the secondary membership exists. It snapshots exact IDs/values—not only counts—from `profiles`, `trips.owner_id`, all relevant `trip_members`, `contributions`, `payment_submissions` and proof/history columns, `expenses` and receipt/history columns, `board_notes`, `board_note_comments`, `board_note_likes`, `chat_messages`, `polls`, `poll_options`, `poll_votes`, `trip_plan_items`, `trip_activities`, and `storage.objects`. It redeems a valid hashed code and asserts that every snapshot is unchanged. Only the passive secondary membership on the active Trip may disappear; signed/committed/owner/archived/orphan memberships must remain.
 
-The test covers wrong, malformed, expired, used, cross-profile, and concurrent redemption behavior. It verifies the token row is unchanged after rejected calls, `used_at` is set once after success, a second same-token redemption fails, and a second transaction blocked on the same row cannot also consume it. Every fixture is rolled back.
+The test covers wrong, malformed, expired, used, fresh-browser (`p_secondary_profile_id = null`), cross-profile-valid-code, and multiple-active-code behavior. It verifies the token row is unchanged after rejected calls, `used_at` is set once after success, two unexpired codes for one primary profile each redeem independently and then reject reuse, and a second same-token redemption fails. A two-session local harness will hold one redemption transaction open while a second session attempts the same token, proving the second session waits and then fails; the function source assertion and sequential acceptance test remain the in-database fallback if the local CLI cannot keep two sessions. Every fixture is rolled back.
 
 - [ ] **Step 2: Run the SQL test before creating the migration**
 
-Run: `npx supabase test db --help` to verify the installed command, then run the project’s local SQL test command against the current schema.
+Run: `npx supabase db query --local --file supabase/tests/m5_4_device_linking.sql` after confirming the local stack with `npx supabase status`.
 
 Expected: FAIL because `device_link_tokens` and `redeem_device_link` do not exist. Do not apply anything to the remote project.
 
@@ -227,7 +227,7 @@ git commit -m "test: specify device link SQL safety and redemption"
 ### Task 4: Create and locally apply the new migration only
 
 **Files:**
-- Create through CLI: `supabase/migrations/<timestamp>_m5_4_cross_device_identity_linking.sql`
+- Create through CLI: `supabase/migrations/20260926173804_m5_4_cross_device_identity_linking.sql`
 - Modify: `supabase/tests/m5_4_device_linking.sql` only if the local CLI requires a documented test-runner adjustment
 
 **Interfaces:**
@@ -275,11 +275,11 @@ revoke execute on function public.redeem_device_link(uuid, text) from authentica
 grant execute on function public.redeem_device_link(uuid, text) to service_role;
 ```
 
-The function must not call unqualified relations, operators, or application functions under the empty search path. A failed cleanup statement must abort the transaction, leaving `used_at` unset and the membership unchanged.
+The function must not call unqualified relations, operators, or application functions under the empty search path; use `pg_catalog.jsonb_build_object` and schema-qualified catalog objects where a builtin is referenced. A failed cleanup statement must abort the transaction, leaving `used_at` unset and the membership unchanged.
 
 - [ ] **Step 4: Reset/apply the migration locally and run the SQL test**
 
-Run: `npx supabase db reset` followed by the supported local database test command discovered from `npx supabase test db --help`.
+Run: `npx supabase db reset` followed by `npx supabase db query --local --file supabase/tests/m5_4_device_linking.sql`.
 
 Expected: the new migration applies locally, `m5_4_device_linking.sql` passes, and no remote project is contacted or changed.
 
@@ -381,7 +381,7 @@ Add `<DeviceLinkPanel />` to the authenticated trips layout near the topbar or p
 
 - [ ] **Step 3: Add the first-use choice and redeem form**
 
-Preserve the existing create flow and copy. Add a button labeled `I already use Paipa`; accept the code with `inputMode="numeric"`, `pattern="[0-9]{8}"`, `maxLength={8}`, and client-side validation. On success call `reconcilePaipaIdentity`, then `router.replace(nextPath)` and `router.refresh()`. On failure leave both cookie and localStorage untouched.
+Preserve the existing create flow and copy. Remove the current mount-time auto-bootstrap so a stale local identity cannot bypass the choice screen. Add a button labeled `I already use Paipa`; accept the code with `inputMode="numeric"`, `pattern="[0-9]{8}"`, `maxLength={8}`, and client-side validation. On success call `reconcilePaipaIdentity`, then `router.replace(nextPath)` and `router.refresh()`. On failure leave both cookie and localStorage untouched.
 
 - [ ] **Step 4: Add compact responsive styles and run UI tests**
 
@@ -426,4 +426,3 @@ Run: `git diff HEAD~6..HEAD --stat`, `git diff HEAD~6..HEAD --check`, and `git s
 - [ ] **Step 4: Stop at the remote approval boundary and report**
 
 Report the exact migration filename; target project `ltkqcjtdzlbtyqwurynp`; table columns/indexes/function; SHA-256 and expiry flow; row-lock concurrency protection; explicit RLS/table/function grants; cleanup guard and archived behavior; destructive-operation status; historical preservation proof; and passing/failing local test results. Do not run `supabase db push`, `supabase migration up`, MCP `apply_migration`, Vercel deploy, or hosted smoke tests until the user explicitly approves the migration.
-
