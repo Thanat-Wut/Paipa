@@ -49,6 +49,8 @@ describe("board response validation", () => {
         content: "ลองร้านนี้กัน",
         color: "yellow",
         sortOrder: 0,
+        positionX: 0.7,
+        positionY: 0.3,
         createdAt: "2026-09-25T08:00:00.000Z",
         updatedAt: "2026-09-25T08:00:00.000Z",
         likeCount: 1,
@@ -63,6 +65,50 @@ describe("board response validation", () => {
         }],
       }],
     })).toMatchObject({ notes: [{ id: NOTE_ID, likeCount: 1, likedByMe: true }] });
+  });
+
+  it("accepts legacy notes with both coordinates missing", () => {
+    expect(parseBoardResponse({
+      notes: [{
+        id: NOTE_ID,
+        tripId: TRIP_ID,
+        authorId: OWNER_ID,
+        authorName: "Mina",
+        authorAvatarUrl: null,
+        title: "โน้ตเก่า",
+        content: "ยังไม่มีพิกัด",
+        color: "pink",
+        sortOrder: 2,
+        positionX: null,
+        positionY: null,
+        createdAt: "2026-09-25T08:00:00.000Z",
+        updatedAt: "2026-09-25T08:00:00.000Z",
+        likeCount: 0,
+        likedByMe: false,
+        comments: [],
+      }],
+    })).toMatchObject({ notes: [{ positionX: null, positionY: null }] });
+  });
+
+  it("rejects a note with only one coordinate or an out-of-range coordinate", () => {
+    const base = {
+      id: NOTE_ID,
+      tripId: TRIP_ID,
+      authorId: OWNER_ID,
+      authorName: "Mina",
+      authorAvatarUrl: null,
+      title: "พิกัดผิด",
+      content: "",
+      color: "blue",
+      sortOrder: 0,
+      createdAt: "2026-09-25T08:00:00.000Z",
+      updatedAt: "2026-09-25T08:00:00.000Z",
+      likeCount: 0,
+      likedByMe: false,
+      comments: [],
+    };
+    expect(parseBoardResponse({ notes: [{ ...base, positionX: 0.4, positionY: null }] })).toBeNull();
+    expect(parseBoardResponse({ notes: [{ ...base, positionX: 1.1, positionY: 0.2 }] })).toBeNull();
   });
 
   it("rejects malformed note responses", () => {

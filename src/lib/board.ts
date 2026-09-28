@@ -1,4 +1,5 @@
 import { isPaipaUuid } from "@/lib/identity";
+import { normalizeBoardPosition } from "@/lib/board-position";
 
 export const BOARD_NOTE_COLORS = ["yellow", "pink", "blue", "green", "purple"] as const;
 export type BoardNoteColor = (typeof BOARD_NOTE_COLORS)[number];
@@ -28,6 +29,8 @@ export type BoardNote = {
   content: string;
   color: BoardNoteColor;
   sortOrder: number;
+  positionX: number | null;
+  positionY: number | null;
   createdAt: string;
   updatedAt: string;
   likeCount: number;
@@ -89,6 +92,12 @@ function parseNote(value: unknown): BoardNote | null {
   if (typeof value.title !== "string" || value.title.trim().length < 1 || value.title.length > 120) return null;
   if (typeof value.content !== "string" || value.content.length > 2000 || !isBoardNoteColor(value.color)) return null;
   if (!Number.isSafeInteger(value.sortOrder) || (value.sortOrder as number) < 0) return null;
+  const positionX = value.positionX === undefined || value.positionX === null ? null : value.positionX;
+  const positionY = value.positionY === undefined || value.positionY === null ? null : value.positionY;
+  if (typeof positionX !== "number" && positionX !== null) return null;
+  if (typeof positionY !== "number" && positionY !== null) return null;
+  if ((positionX === null) !== (positionY === null)) return null;
+  if (positionX !== null && !normalizeBoardPosition({ positionX, positionY })) return null;
   if (!isDate(value.createdAt) || !isDate(value.updatedAt)) return null;
   if (!Number.isSafeInteger(value.likeCount) || (value.likeCount as number) < 0 || typeof value.likedByMe !== "boolean") return null;
   if (!Array.isArray(value.comments)) return null;
@@ -104,6 +113,8 @@ function parseNote(value: unknown): BoardNote | null {
     content: value.content,
     color: value.color,
     sortOrder: value.sortOrder as number,
+    positionX,
+    positionY,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
     likeCount: value.likeCount as number,

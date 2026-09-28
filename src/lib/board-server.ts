@@ -23,6 +23,8 @@ type NoteRow = {
   content: string;
   color: BoardNoteColor;
   sort_order: number;
+  position_x: number | null;
+  position_y: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -48,7 +50,7 @@ export async function noteIsInTrip(supabase: ReturnType<typeof createAdminClient
 
 export async function loadBoard(supabase: ReturnType<typeof createAdminClient>, tripId: string, actorId: string): Promise<BoardResponse> {
   const { data: noteRows, error: noteError } = await supabase
-    .from("board_notes").select("id, trip_id, author_id, title, content, color, sort_order, created_at, updated_at")
+    .from("board_notes").select("id, trip_id, author_id, title, content, color, sort_order, position_x, position_y, created_at, updated_at")
     .eq("trip_id", tripId).order("sort_order").order("created_at").order("id");
   if (noteError) throw new Error(noteError.message);
   const notes = (noteRows ?? []) as NoteRow[];
@@ -95,6 +97,8 @@ export async function loadBoard(supabase: ReturnType<typeof createAdminClient>, 
         content: note.content,
         color: note.color,
         sortOrder: note.sort_order,
+        positionX: note.position_x,
+        positionY: note.position_y,
         createdAt: note.created_at,
         updatedAt: note.updated_at,
         likeCount: noteLikes.length,
