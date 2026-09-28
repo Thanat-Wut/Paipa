@@ -43,6 +43,7 @@ The exact production schema was inspected through the linked Supabase project. T
 - `id uuid PRIMARY KEY` — a surrogate membership-row identifier;
 - `trip_id uuid NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE`;
 - `user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE` — the profile/identity identifier;
+- `joined_at timestamptz NOT NULL` — the existing stable membership creation/order field;
 - existing `UNIQUE (trip_id, user_id)` constraint, named in production `trip_members_trip_id_user_id_key`;
 - no separate composite primary key.
 
@@ -167,13 +168,13 @@ This guarantees that:
 - Trip deletion cascades safely;
 - cross-Trip position rows cannot be inserted through the relational key.
 
-Rows are created only after a member moves. A member without a row receives a deterministic client/server read-model fallback based on roster order.
+Rows are created only after a member moves. A member without a row receives a deterministic client/server read-model fallback based on the authoritative roster order.
 
 ### 4.3 Coordinates and defaults
 
 Coordinates are normalized values in `[0,1]` and represent the token's top-left anchor within the room, matching the proven Board model. The client clamps the effective position using measured token and room dimensions so a token cannot disappear outside the room on a smaller viewport.
 
-Default positions are deterministic from the ordered current roster. The pattern uses several staggered columns and rows and clamps each result to a safe normalized range. No collision detection is performed and occasional overlap is acceptable.
+Default positions are deterministic from the ordered current roster. The Lobby read model orders `trip_members` by the existing non-null `joined_at` ascending, then `user_id` ascending as the deterministic tie-breaker. The server returns members in exactly that order; the fallback-position helper consumes that sequence and clients do not independently reorder members. The same ordering is used on initial load, authoritative refetch, and reload, so members without saved positions do not jump between locations. The pattern uses several staggered columns and rows and clamps each result to a safe normalized range. No collision detection is performed and occasional overlap is acceptable.
 
 ## 5. Permissions and authorization
 
@@ -277,6 +278,21 @@ authorized Trip request
 
 The service key is never exposed. The bucket is never public. The route must not accept a browser-supplied Storage path.
 
+### 6.6 RPC execution privileges and table boundary
+
+Every new Lobby RPC is `SECURITY DEFINER` and must:
+
+- declare `SET search_path = ''`;
+- use fully qualified references for every database object, including `public.*`, `private.*`, and `storage.*` objects where applicable;
+- explicitly revoke execute from `PUBLIC`;
+- explicitly revoke execute from `anon`;
+- explicitly revoke execute from `authenticated`;
+- grant execute only to `service_role`.
+
+The browser never executes a Lobby RPC directly. Browser requests go through the Next.js server route, which supplies the authoritative actor identity.
+
+Both Lobby tables remain server-bound: RLS is enabled, table access is revoked from `PUBLIC`, `anon`, and `authenticated`, and no browser policy or grant is added merely for convenience. The server-only Supabase client is the only application path that reads or mutates these tables.
+
 ## 7. Custom Storage and replacement lifecycle
 
 Bucket:
@@ -285,8 +301,10 @@ Bucket:
 trip-room-backgrounds
 private: true
 allowed MIME: image/jpeg, image/png, image/webp
-proposed size limit: 10 MiB
+maximum file size: 4 MiB
 ```
+
+Because custom upload requests and authorized image responses pass through Next.js/Vercel Functions for privacy, the Phase B MVP uses a 4 MiB maximum rather than a larger payload. The upload route rejects `File.size > 4 MiB` before attempting Storage persistence where possible, and the Storage bucket metadata uses the same 4 MiB limit. Larger direct-to-Storage uploads may be considered later if real usage requires them, but direct browser uploads, signed-upload architecture, and another Storage provider are out of scope for this MVP.
 
 Path convention:
 
@@ -318,6 +336,19 @@ authoritatively update trip_lobbies to the selected preset
 If the DB update fails, the custom background remains authoritative and no Storage deletion occurs.
 
 Cleanup failure must not replace a valid new background with a broken state. The server should record/report cleanup failure for follow-up while preserving the committed authoritative reference.
+
+### 7.3 Whole-Trip deletion
+
+Custom Storage objects are not removed by PostgreSQL row cascades. The existing authoritative Trip deletion flow must be extended minimally:
+
+```text
+before deleting the Trip
+→ resolve/capture the current custom Lobby Storage path, if any
+→ perform the existing authoritative Trip deletion
+→ only after Trip deletion succeeds, best-effort delete the now-unreferenced object
+```
+
+If Trip deletion fails, the custom object is not deleted and the old database reference remains authoritative. If Storage cleanup fails after a successful Trip deletion, report/log the orphan for follow-up. The Lobby database rows may cascade normally, but the custom object must never be deleted before successful Trip deletion.
 
 ## 8. Drag behavior
 
@@ -391,9 +422,10 @@ The migration will:
 4. use `ON DELETE CASCADE` for Trip/member lifecycle cleanup;
 5. create indexes needed for Trip-scoped reads;
 6. enable RLS and retain the repository's service-role-only server boundary;
-7. create security-definer RPCs with explicit `search_path = ''`;
+7. create security-definer RPCs with explicit `search_path = ''`, fully qualified references, explicit REVOKE from `PUBLIC`, `anon`, and `authenticated`, and GRANT only to `service_role`;
 8. add only the two Lobby tables to `supabase_realtime`;
-9. create the private `trip-room-backgrounds` bucket with the defined MIME and size restrictions.
+9. create the private `trip-room-backgrounds` bucket with JPEG/PNG/WEBP restrictions and a 4 MiB file-size limit;
+10. integrate current Trip deletion cleanup so the custom path is captured before deletion and removed only after successful deletion.
 
 Existing Trips require no data rewrite. Missing Lobby config means `cozy`; missing position means deterministic fallback. No destructive migration is planned.
 
@@ -406,6 +438,7 @@ Existing Trips require no data rewrite. Missing Lobby config means `cozy`; missi
 - deterministic fallback position generation;
 - preset-key validation;
 - custom upload MIME/size validation;
+- rejection of custom files above 4 MiB before Storage persistence where possible;
 - safe Storage path validation;
 - parsing of Lobby API responses.
 
@@ -425,7 +458,10 @@ Existing Trips require no data rewrite. Missing Lobby config means `cozy`; missi
 - upload failure preserves old reference;
 - DB failure cleans the new orphan when safe;
 - old object cleanup occurs only after successful reference change;
-- custom-to-preset cleanup follows the same ordering.
+- custom-to-preset cleanup follows the same ordering;
+- whole-Trip deletion captures the custom path before deletion and cleans it only after successful deletion;
+- failed Trip deletion does not remove the custom object;
+- failed post-deletion Storage cleanup is reported/logged as an orphan.
 
 ### SQL/integration
 
@@ -510,9 +546,12 @@ Production verification must use isolated fixtures only and must not touch real 
 
 - Authorization is checked at page/API/RPC boundaries and uses the server identity cookie.
 - The member identifier and existing composite UNIQUE constraint were verified against production and local migrations.
+- Fallback roster ordering uses existing `joined_at ASC, user_id ASC`; no invented ordering column is required.
 - The composite FK prevents cross-Trip membership mismatch and cascades member removal.
-- Custom Storage is private, server-resolved, and never authoritative from a browser-supplied path.
+- Custom Storage is private, server-resolved, limited to 4 MiB for the Vercel Function path, and never authoritative from a browser-supplied path.
 - Replacement ordering preserves the old reference until the new DB state commits.
+- Whole-Trip deletion preserves the custom object until Trip deletion succeeds, then performs best-effort cleanup.
+- Every new RPC is server-only with empty `search_path`, qualified references, explicit privilege revocation, and service-role-only execution.
 - Archived mutations are blocked in both server code and RPCs.
 - Realtime is limited to the two Lobby tables and causes Lobby-only authoritative refetches.
 - Pointer movement is local only; one final persistence request occurs on drop.
