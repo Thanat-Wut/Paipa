@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Heart, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowDown, ArrowUp, GripVertical, Heart, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import Link from "next/link";
 import { MemberAvatar } from "@/components/ui";
 import { BOARD_NOTE_COLORS, type BoardNote, type BoardNoteColor, type BoardResponse } from "@/lib/board";
+import { clampBoardPosition, resolveBoardPosition, serializeBoardPosition, type BoardPosition } from "@/lib/board-position";
 import { clientErrorMessage } from "@/lib/client-error";
 import { createRealtimeRefreshScheduler } from "@/lib/realtime-refresh";
 
@@ -19,6 +20,7 @@ function errorMessage(code: string | undefined, fallback: string) {
   if (code === "TRIP_ARCHIVED") return "ทริปนี้ปิดแล้ว จึงแก้ไขบอร์ดไม่ได้";
   if (code === "NOTE_FORBIDDEN") return "แก้ไขได้เฉพาะไอเดียของตัวเอง";
   if (code === "COMMENT_FORBIDDEN") return "ลบได้เฉพาะคอมเมนต์ของตัวเอง";
+  if (code === "BOARD_POSITION_UPDATE_FAILED") return "บันทึกตำแหน่งไม่สำเร็จ กรุณาลองใหม่";
   if (code === "NOTE_NOT_FOUND" || code === "TRIP_NOT_FOUND") return "ไม่พบไอเดียนี้แล้ว ลองโหลดบอร์ดใหม่";
   return fallback;
 }
@@ -89,25 +91,150 @@ function CommentList({ note, currentUserId, ownerId, tripId, disabled, onChanged
   return <div className="board-comments"><div className="board-comments-title"><MessageCircle size={15}/> คุยกันหน่อย <span>{note.comments.length}</span></div>{note.comments.map((comment) => <div className="board-comment" key={comment.id}><div className="board-comment-body"><strong>{comment.authorName}</strong><p>{comment.content}</p></div>{(comment.authorId === currentUserId || ownerId === currentUserId) && <button className="text-button" type="button" disabled={busy || disabled} onClick={() => void removeComment(comment.id)}>ลบ</button>}</div>)}<form className="board-comment-form" onSubmit={addComment}><input aria-label={`คอมเมนต์ไอเดีย ${note.title}`} value={content} maxLength={1000} placeholder="ชวนเพื่อนคุย…" disabled={busy || disabled} onChange={(event) => setContent(event.target.value)}/><button className="icon-button" type="submit" aria-label="ส่งคอมเมนต์" disabled={busy || disabled || !content.trim()}><Send size={16}/></button></form>{error && <p className="board-error" role="alert">{error}</p>}</div>;
 }
 
-function NoteCard({ note, currentUserId, ownerId, tripId, isArchived, first, last, onChanged, onEdit }: { note: BoardNote; currentUserId: string; ownerId: string; tripId: string; isArchived: boolean; first: boolean; last: boolean; onChanged: () => Promise<void>; onEdit: (note: BoardNote) => void }) {
+type NoteCardProps = {
+  note: BoardNote;
+  currentUserId: string;
+  ownerId: string;
+  tripId: string;
+  isArchived: boolean;
+  first: boolean;
+  last: boolean;
+  initialPosition: BoardPosition;
+  canvasRef: RefObject<HTMLDivElement | null>;
+  onChanged: () => Promise<void>;
+  onPositionSaved: (noteId: string, previous: BoardPosition, next: BoardPosition) => Promise<void>;
+  onEdit: (note: BoardNote) => void;
+};
+
+function positionsEqual(left: BoardPosition, right: BoardPosition) {
+  return Math.abs(left.x - right.x) < 0.000001 && Math.abs(left.y - right.y) < 0.000001;
+}
+
+function NoteCard({ note, currentUserId, ownerId, tripId, isArchived, first, last, initialPosition, canvasRef, onChanged, onPositionSaved, onEdit }: NoteCardProps) {
+  const initialX = initialPosition.x;
+  const initialY = initialPosition.y;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [position, setPosition] = useState(initialPosition);
+  const [positionBusy, setPositionBusy] = useState(false);
+  const [positionError, setPositionError] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const noteRef = useRef<HTMLElement | null>(null);
+  const positionRef = useRef(initialPosition);
+  const dragRef = useRef<{ pointerId: number; startClientX: number; startClientY: number; startPosition: BoardPosition } | null>(null);
   const canEdit = note.authorId === currentUserId;
   const canDelete = canEdit || ownerId === currentUserId;
+  const actionBusy = busy || positionBusy;
+
+  useEffect(() => {
+    if (dragRef.current) return;
+    const nextInitialPosition = { x: initialX, y: initialY };
+    if (!positionsEqual(positionRef.current, nextInitialPosition)) {
+      positionRef.current = nextInitialPosition;
+      setPosition(nextInitialPosition);
+    }
+  }, [initialX, initialY]);
+
+  useEffect(() => {
+    const measure = () => {
+      if (dragRef.current) return;
+      const canvas = canvasRef.current;
+      const card = noteRef.current;
+      if (!canvas || !card) return;
+      const canvasRect = canvas.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      if (canvasRect.width <= 0 || canvasRect.height <= 0) return;
+      const next = clampBoardPosition(positionRef.current, {
+        maxX: 1 - cardRect.width / canvasRect.width,
+        maxY: 1 - cardRect.height / canvasRect.height,
+      });
+      if (!positionsEqual(positionRef.current, next)) {
+        positionRef.current = next;
+        setPosition(next);
+      }
+    };
+    const timer = window.setTimeout(measure, 0);
+    return () => window.clearTimeout(timer);
+  }, [canvasRef, initialX, initialY]);
+
   async function mutate(url: string, init?: RequestInit) {
-    if (busy || isArchived) return;
+    if (actionBusy || isArchived) return;
     setBusy(true); setError("");
     try { await requestJson(url, init); await onChanged(); }
     catch (reason) { setError(clientErrorMessage(reason, "ทำรายการไม่สำเร็จ")); }
     finally { setBusy(false); }
   }
-  return <article className={`board-note board-note-${note.color}`} data-note-id={note.id}>
+
+  function pointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (isArchived || actionBusy || dragRef.current) return;
+    const canvas = canvasRef.current;
+    const card = noteRef.current;
+    if (!canvas || !card) return;
+    const canvasRect = canvas.getBoundingClientRect();
+    if (canvasRect.width <= 0 || canvasRect.height <= 0) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPosition: positionRef.current,
+    };
+    setPositionError("");
+    setDragging(true);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  function pointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    const canvas = canvasRef.current;
+    const card = noteRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !canvas || !card) return;
+    const canvasRect = canvas.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    if (canvasRect.width <= 0 || canvasRect.height <= 0) return;
+    const next = clampBoardPosition({
+      x: drag.startPosition.x + (event.clientX - drag.startClientX) / canvasRect.width,
+      y: drag.startPosition.y + (event.clientY - drag.startClientY) / canvasRect.height,
+    }, {
+      maxX: 1 - cardRect.width / canvasRect.width,
+      maxY: 1 - cardRect.height / canvasRect.height,
+    });
+    positionRef.current = next;
+    setPosition(next);
+    event.preventDefault();
+  }
+
+  function pointerEnd(event: ReactPointerEvent<HTMLButtonElement>, cancelled = false) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture?.(event.pointerId);
+    dragRef.current = null;
+    setDragging(false);
+    if (cancelled) {
+      positionRef.current = drag.startPosition;
+      setPosition(drag.startPosition);
+      return;
+    }
+    const next = positionRef.current;
+    if (positionsEqual(drag.startPosition, next)) return;
+    setPositionBusy(true);
+    void onPositionSaved(note.id, drag.startPosition, next)
+      .catch((reason) => {
+        positionRef.current = drag.startPosition;
+        setPosition(drag.startPosition);
+        setPositionError(clientErrorMessage(reason, "บันทึกตำแหน่งไม่สำเร็จ กรุณาลองใหม่"));
+      })
+      .finally(() => setPositionBusy(false));
+  }
+
+  const positionStyle: CSSProperties = { left: `${position.x * 100}%`, top: `${position.y * 100}%` };
+  return <article ref={noteRef} className={`board-note board-note-${note.color}${dragging ? " board-note-dragging" : ""}`} style={positionStyle} data-note-id={note.id}>
     <div className="board-note-tape" aria-hidden="true"/>
-    <header className="board-note-header"><div className="board-note-author"><MemberAvatar name={note.authorName} url={note.authorAvatarUrl}/><span><strong>{note.authorName}</strong><small>{noteDate(note.createdAt)}</small></span></div><span className="board-note-color">{COLOR_LABELS[note.color]}</span></header>
+    <header className="board-note-header"><div className="board-note-author"><MemberAvatar name={note.authorName} url={note.authorAvatarUrl}/><span><strong>{note.authorName}</strong><small>{noteDate(note.createdAt)}</small></span></div><span className="board-note-color">{COLOR_LABELS[note.color]}</span><button className="board-note-drag-handle" type="button" aria-label={`ลากเพื่อย้าย ${note.title}`} disabled={isArchived || actionBusy} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={(event) => pointerEnd(event, true)}><GripVertical size={16} aria-hidden="true"/></button></header>
     <h3>{note.title}</h3><p className="board-note-content">{note.content || "ไอเดียสั้น ๆ จากเพื่อน"}</p><Link className="text-button" href={`/trips/${tripId}/plan?boardNote=${note.id}`}>เพิ่มเข้าแผน</Link>
-    <div className="board-note-actions"><button className={`board-like-button ${note.likedByMe ? "liked" : ""}`} type="button" aria-label={note.likedByMe ? `เลิกถูกใจ ${note.title}` : `ถูกใจ ${note.title}`} disabled={busy || isArchived} onClick={() => void mutate(`/api/trips/${tripId}/board/notes/${note.id}/like`, { method: "POST" })}><Heart size={16} fill={note.likedByMe ? "currentColor" : "none"}/><span>{note.likeCount}</span></button><span className="board-comment-count"><MessageCircle size={16}/>{note.comments.length}</span><span className="board-note-spacer"/>{canEdit && <button className="icon-button" type="button" aria-label={`แก้ไข ${note.title}`} disabled={busy || isArchived} onClick={() => onEdit(note)}><Pencil size={15}/></button>}{canDelete && <button className="icon-button danger" type="button" aria-label={`ลบ ${note.title}`} disabled={busy || isArchived} onClick={() => void mutate(`/api/trips/${tripId}/board/notes/${note.id}`, { method: "DELETE" })}><Trash2 size={15}/></button>}</div>
-    <div className="board-note-order"><Link className="text-button" href={`/trips/${tripId}/chat?note=${note.id}`}><MessageCircle size={13}/> คุยเรื่องนี้</Link><span className="board-note-spacer"/><button className="text-button" type="button" disabled={busy || isArchived || first} onClick={() => void mutate(`/api/trips/${tripId}/board/order`, { method: "POST", body: JSON.stringify({ noteId: note.id, direction: "up" }) })}><ArrowUp size={13}/> ขึ้น</button><button className="text-button" type="button" disabled={busy || isArchived || last} onClick={() => void mutate(`/api/trips/${tripId}/board/order`, { method: "POST", body: JSON.stringify({ noteId: note.id, direction: "down" }) })}><ArrowDown size={13}/> ลง</button></div>
-    <CommentList note={note} currentUserId={currentUserId} ownerId={ownerId} tripId={tripId} disabled={isArchived || busy} onChanged={onChanged}/>{error && <p className="board-error" role="alert">{error}</p>}
+    <div className="board-note-actions"><button className={`board-like-button ${note.likedByMe ? "liked" : ""}`} type="button" aria-label={note.likedByMe ? `เลิกถูกใจ ${note.title}` : `ถูกใจ ${note.title}`} disabled={actionBusy || isArchived} onClick={() => void mutate(`/api/trips/${tripId}/board/notes/${note.id}/like`, { method: "POST" })}><Heart size={16} fill={note.likedByMe ? "currentColor" : "none"}/><span>{note.likeCount}</span></button><span className="board-comment-count"><MessageCircle size={16}/>{note.comments.length}</span><span className="board-note-spacer"/>{canEdit && <button className="icon-button" type="button" aria-label={`แก้ไข ${note.title}`} disabled={actionBusy || isArchived} onClick={() => onEdit(note)}><Pencil size={15}/></button>}{canDelete && <button className="icon-button danger" type="button" aria-label={`ลบ ${note.title}`} disabled={actionBusy || isArchived} onClick={() => void mutate(`/api/trips/${tripId}/board/notes/${note.id}`, { method: "DELETE" })}><Trash2 size={15}/></button>}</div>
+    <div className="board-note-order"><Link className="text-button" href={`/trips/${tripId}/chat?note=${note.id}`}><MessageCircle size={13}/> คุยเรื่องนี้</Link><span className="board-note-spacer"/><button className="text-button" type="button" disabled={actionBusy || isArchived || first} onClick={() => void mutate(`/api/trips/${tripId}/board/order`, { method: "POST", body: JSON.stringify({ noteId: note.id, direction: "up" }) })}><ArrowUp size={13}/> ขึ้น</button><button className="text-button" type="button" disabled={actionBusy || isArchived || last} onClick={() => void mutate(`/api/trips/${tripId}/board/order`, { method: "POST", body: JSON.stringify({ noteId: note.id, direction: "down" }) })}><ArrowDown size={13}/> ลง</button></div>
+    <CommentList note={note} currentUserId={currentUserId} ownerId={ownerId} tripId={tripId} disabled={isArchived || actionBusy} onChanged={onChanged}/>{positionError && <p className="board-error" role="alert">{positionError}</p>}{error && <p className="board-error" role="alert">{error}</p>}
   </article>;
 }
 
@@ -117,6 +244,7 @@ export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived, foc
   const [editing, setEditing] = useState<BoardNote | null>(null);
   const [pageError, setPageError] = useState("");
   const requestRef = useRef<AbortController | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     requestRef.current?.abort();
@@ -169,6 +297,14 @@ export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived, foc
     setShowForm(false); setEditing(null); await load();
   }
 
+  async function savePosition(noteId: string, _previous: BoardPosition, next: BoardPosition) {
+    await requestJson(`/api/trips/${tripId}/board/notes/${noteId}/position`, {
+      method: "PATCH",
+      body: JSON.stringify(serializeBoardPosition(next)),
+    });
+    await load();
+  }
+
   const notes = resource.status === "ready" ? resource.data.notes : [];
   return <section className="board-workspace" aria-label="Trip Board">
     <div className="board-toolbar"><div><span className="eyebrow">SHARED IDEAS</span><h2>บอร์ดของพวกเรา</h2><p>ทุกคนช่วยกันแปะไอเดีย แล้วโหวตอันที่อยากไปที่สุด</p></div><button className="button button-primary" type="button" disabled={isArchived} onClick={() => { setEditing(null); setShowForm(true); }}>+ เพิ่มไอเดีย</button></div>
@@ -177,6 +313,6 @@ export function BoardWorkspace({ tripId, currentUserId, ownerId, isArchived, foc
     {resource.status === "loading" && <div className="panel board-state" role="status">กำลังโหลดไอเดีย…</div>}
     {resource.status === "error" && <div className="panel board-state" role="alert"><p>{resource.message}</p><button className="button button-outline" type="button" onClick={() => void load()}>ลองโหลดใหม่</button></div>}
     {resource.status === "ready" && !notes.length && <div className="panel board-state"><span className="empty-illustration">📝</span><h3>ยังไม่มีไอเดีย ลองเพิ่มอันแรกกัน</h3><p>แปะร้านอาหาร ที่เที่ยว หรือเรื่องที่อยากชวนเพื่อนคุยได้เลย</p><button className="button button-primary" type="button" disabled={isArchived} onClick={() => setShowForm(true)}>+ เพิ่มไอเดียแรก</button></div>}
-    {resource.status === "ready" && notes.length > 0 && <div className="board-note-grid">{notes.map((note, index) => <NoteCard key={note.id} note={note} currentUserId={currentUserId} ownerId={ownerId} tripId={tripId} isArchived={isArchived} first={index === 0} last={index === notes.length - 1} onChanged={load} onEdit={(next) => { setShowForm(false); setEditing(next); }}/>)}</div>}
+    {resource.status === "ready" && notes.length > 0 && <div className="board-note-canvas" ref={canvasRef}>{notes.map((note, index) => <NoteCard key={note.id} note={note} currentUserId={currentUserId} ownerId={ownerId} tripId={tripId} isArchived={isArchived} first={index === 0} last={index === notes.length - 1} initialPosition={resolveBoardPosition(note.positionX, note.positionY, note.sortOrder, index)} canvasRef={canvasRef} onChanged={load} onPositionSaved={savePosition} onEdit={(next) => { setShowForm(false); setEditing(next); }}/>)}</div>}
   </section>;
 }
