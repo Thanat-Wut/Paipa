@@ -111,3 +111,5 @@ export const REALTIME_SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
   "X-Accel-Buffering": "no",
 };
+
+export const REALTIME_RECONNECT_MS = 4 * 60 * 1000;

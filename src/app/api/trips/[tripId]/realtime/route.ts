@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { getOptionalIdentity } from "@/lib/identity-server";
 import { normalizeTripId, readBoardTrip } from "@/lib/board-server";
-import { encodeSse, projectRealtimeEvent, REALTIME_SSE_HEADERS, type RealtimeEventType, type RealtimePayload } from "@/lib/realtime-server";
+import { encodeSse, projectRealtimeEvent, REALTIME_RECONNECT_MS, REALTIME_SSE_HEADERS, type RealtimeEventType, type RealtimePayload } from "@/lib/realtime-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,12 +36,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
   const encoder = new TextEncoder();
   let channel: ReturnType<typeof access.supabase.channel> | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let cleaned = false;
 
   const cleanup = async () => {
     if (cleaned) return;
     cleaned = true;
     if (heartbeat) clearInterval(heartbeat);
+    if (reconnectTimer) clearTimeout(reconnectTimer);
     if (channel) await access.supabase.removeChannel(channel);
   };
 
@@ -216,6 +218,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
           catch { closed = true; void cleanup(); }
         }
       }, 15_000);
+      reconnectTimer = setTimeout(() => {
+        if (closed || cleaned) return;
+        enqueue({ scope, status: "RECONNECT" });
+        closed = true;
+        try { controller.close(); } catch { /* stream already closed */ }
+        void cleanup();
+      }, REALTIME_RECONNECT_MS);
       request.signal.addEventListener("abort", () => { closed = true; void cleanup(); }, { once: true });
     },
     async cancel() { await cleanup(); },

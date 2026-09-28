@@ -95,6 +95,31 @@ describe("M3.3 realtime SSE route", () => {
     expect(removeChannel).toHaveBeenCalledWith(channel);
   });
 
+  it("gracefully closes before the Vercel function limit so EventSource can reconnect", async () => {
+    vi.useFakeTimers();
+    try {
+      const { GET } = await import("@/app/api/trips/[tripId]/realtime/route");
+      const response = await GET(request(), { params: Promise.resolve({ tripId: TRIP_ID }) });
+      const reader = response.body?.getReader();
+      await reader?.read();
+
+      const reconnect = (async () => {
+        for (;;) {
+          const next = await reader?.read();
+          if (!next || next.done) return "";
+          const chunk = new TextDecoder().decode(next.value);
+          if (chunk.includes('"status":"RECONNECT"')) return chunk;
+        }
+      })();
+      await vi.advanceTimersByTimeAsync(4 * 60 * 1000);
+
+      await expect(reconnect).resolves.toContain('"status":"RECONNECT"');
+      expect(removeChannel).toHaveBeenCalledWith(channel);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("scopes chat DELETE payloads that omit trip_id through the known-message cache", async () => {
     const { GET } = await import("@/app/api/trips/[tripId]/realtime/route");
     const response = await GET(request(), { params: Promise.resolve({ tripId: TRIP_ID }) });
