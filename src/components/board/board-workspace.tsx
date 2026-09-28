@@ -180,7 +180,7 @@ function NoteCard({ note, currentUserId, ownerId, tripId, isArchived, first, las
     };
     setPositionError("");
     setDragging(true);
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch { /* synthetic or already-cancelled pointer */ }
     event.preventDefault();
   }
 
@@ -207,7 +207,9 @@ function NoteCard({ note, currentUserId, ownerId, tripId, isArchived, first, las
   function pointerEnd(event: ReactPointerEvent<HTMLButtonElement>, cancelled = false) {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture?.(event.pointerId);
+    try {
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture?.(event.pointerId);
+    } catch { /* pointer capture may already be gone */ }
     dragRef.current = null;
     setDragging(false);
     if (cancelled) {
