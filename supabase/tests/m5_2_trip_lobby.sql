@@ -127,6 +127,9 @@ begin
   if abs(v_x - 0.61) > 0.0000001 or abs(v_y - 0.29) > 0.0000001 then
     raise exception 'member Lobby position did not persist';
   end if;
+  if exists (select 1 from public.trip_lobbies where trip_id = v_trip) then
+    raise exception 'position mutation must not create a Lobby background row';
+  end if;
 
   select public.set_trip_lobby_preset(v_owner, v_trip, 'cabin') into v_path;
   if v_path is not null then raise exception 'preset mutation returned an unexpected old custom path'; end if;

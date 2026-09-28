@@ -84,10 +84,6 @@ begin
     raise exception 'NOT_MEMBER';
   end if;
 
-  insert into public.trip_lobbies(trip_id)
-  values (p_trip_id)
-  on conflict (trip_id) do nothing;
-
   insert into public.trip_lobby_positions(trip_id, user_id, position_x, position_y)
   values (p_trip_id, p_actor_id, p_position_x, p_position_y)
   on conflict (trip_id, user_id) do update
