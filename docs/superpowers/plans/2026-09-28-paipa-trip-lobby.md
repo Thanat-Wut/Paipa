@@ -30,7 +30,7 @@
 - Publish/listen only to `public.trip_lobbies` and `public.trip_lobby_positions`. Lobby SSE events are minimal and cause a Lobby authoritative refetch only; Board, Chat, Poll, Plan, and Activity must not refetch because of Lobby events.
 - Archived members may read the Lobby and custom background, but all position/background mutations are denied in the route and RPC; the UI is read-only.
 - Preserve desktop and `390x844` mobile behavior, including normal page scrolling outside the own-token drag handle.
-- Do not create `feature/trip-lobby`, apply or create a migration, modify Supabase, modify Vercel, deploy, or write implementation code while preparing or reviewing this plan.
+- Do not create `feature/trip-lobby`, apply or create a migration, modify Supabase, modify Vercel, deploy, or write implementation code while preparing or reviewing this plan. When execution is approved, create the isolated `feature/trip-lobby` branch/worktree before Task 1.
 - Remote DDL requires the explicit human approval gate in this plan. Preview must pass before a normal merge to `main`; Production remains `https://paipa.vercel.app` in `hnd1`.
 
 ## Review Focus
@@ -115,6 +115,32 @@ The files below are the expected implementation surface. This planning task crea
 - `src/lib/data.ts`, `src/lib/trip-access.ts`, `src/components/ui.tsx`, and existing API routes — reuse their conventions; do not refactor them unless a focused failing test proves the small change necessary.
 
 ---
+
+## Execution start gate (before Task 1)
+
+No implementation task may run in the current `main` checkout. When the plan is explicitly approved and execution begins, use `superpowers:using-git-worktrees` first:
+
+- [ ] Verify the latest local and remote default branch state without rewriting history:
+
+  ```powershell
+  git fetch origin main
+  git status --short --branch
+  git rev-parse main
+  git rev-parse origin/main
+  git log -1 --oneline main
+  ```
+
+  Expected: the working tree is clean, the chosen base is the latest verified `main`, and neither `main` nor `origin/main` is reset or force-updated.
+
+- [ ] Confirm the approved history is preserved: spec commit `47333a6` and plan commit `498a23b` must remain reachable from the chosen base. If the plan amendment commit is the new base, preserve that commit as well.
+
+- [ ] Detect whether the current checkout is already an isolated linked worktree. If it is not, use the repository's native Codex worktree tool when available to create branch/worktree `feature/trip-lobby` from the verified latest `main`. Do not create `develop`, do not force-push, and do not implement in the main checkout.
+
+- [ ] If the native tool is unavailable, follow `superpowers:using-git-worktrees` fallback rules: use an existing ignored project-local worktree directory if present; otherwise verify the chosen directory is ignored before using it; create the isolated worktree with branch `feature/trip-lobby` from `main`.
+
+- [ ] In the isolated worktree, verify `git branch --show-current`, `git status --short --branch`, and the approved spec/plan commits before Task 1. Run the repository baseline test command and stop if the clean baseline is not verified.
+
+All implementation Tasks 1–13 below execute inside this isolated `feature/trip-lobby` worktree. The only work performed before this gate is the plan review/amendment itself.
 
 ### Task 1: Add pure Lobby domain and Storage contracts
 
@@ -253,6 +279,34 @@ The files below are the expected implementation surface. This planning task crea
   git add supabase/migrations/20260928120000_trip_lobby.sql supabase/tests/m5_2_trip_lobby.sql
   git commit -m "feat: add trip lobby database foundation"
   ```
+
+- [ ] **Step 7: After explicit approval, apply exactly the approved migration to the linked project**
+
+  Do not edit the migration between approval and apply. Run the repository's linked migration command against target project `ltkqcjtdzlbtyqwurynp`, then immediately run `npx supabase migration list --linked` and verify migration history before any application work continues.
+
+- [ ] **Step 8: Apply the migration-history drift gate immediately after remote apply**
+
+  Compare the local canonical migration version, remote migration version, expected filename/name `20260928120000_trip_lobby`, and occurrence count. The expected result is exactly one matching remote history row for the canonical local migration. If the remote tool records an unexpected version, or the expected version appears zero or multiple times, stop. Do not rerun migration SQL to repair metadata; reconcile the history explicitly before continuing.
+
+- [ ] **Step 9: Verify remote schema, privileges, and acceptance before Tasks 3–10**
+
+  Against the linked project, verify the tables, columns, existing composite FK, checks, indexes, RPC definitions, SECURITY DEFINER/search path, EXECUTE grants, RLS/table grants, private bucket metadata, and the two-table Realtime publication. Then run the remote SQL acceptance file with isolated fixtures using the repository's linked SQL-query convention, for example:
+
+  ```powershell
+  npx supabase db query --linked --file supabase/tests/m5_2_trip_lobby.sql
+  ```
+
+  Verify zero fixture rows and zero `trip-room-backgrounds` objects remain. Run the linked Supabase advisor/lint check:
+
+  ```powershell
+  npx supabase db lint --linked
+  ```
+
+  If remote acceptance or the advisor/lint check fails, stop and report the failure. Do not continue to Tasks 3–10, E2E, Preview, or Production.
+
+- [ ] **Step 10: Continue implementation only after the remote gate is green**
+
+  Tasks 3–10 may begin only after all of the following are recorded as passing: approved complete migration report, exact remote migration history, schema/FK/RPC/grant/RLS/bucket/Realtime verification, remote SQL acceptance with zero fixture residue, and Supabase advisors/lint. This is the only remote DDL application point in the plan.
 
 ### Task 3: Build the sanitized Lobby read model and GET route
 
@@ -613,8 +667,10 @@ The files below are the expected implementation surface. This planning task crea
 - Create: `e2e/m5-2-trip-lobby.spec.ts`
 
 **Interfaces:**
-- Consumes: real Next.js Route Handlers, the approved linked Supabase project after the migration gate, two browser Soft Identity contexts, and the existing E2E cleanup conventions.
+- Consumes: real Next.js Route Handlers, the approved and applied linked Supabase migration, passed remote SQL acceptance with zero fixture residue, two browser Soft Identity contexts, and the existing E2E cleanup conventions.
 - Produces: a real owner/member regression for read, movement, preset/custom background, privacy, reload persistence, replacement cleanup, and archived read-only behavior.
+
+These tests are blocked until `REMOTE DDL APPROVED + REMOTE MIGRATION APPLIED + REMOTE ACCEPTANCE PASSED`. They must never be used as an implicit test of an unapplied schema.
 
 - [ ] **Step 1: Write the failing E2E scenarios**
 
@@ -637,7 +693,7 @@ The files below are the expected implementation surface. This planning task crea
 
   Run: `npm run test:e2e -- e2e/m5-2-trip-lobby.spec.ts`
 
-  Expected: Playwright fails because the Lobby route and controls do not exist.
+  Expected after the remote gate and before Lobby implementation: Playwright fails because the Lobby route and controls do not exist. Do not run this linked-project E2E before the remote migration/acceptance gate is green.
 
 - [ ] **Step 3: Implement fixture creation and isolated cleanup in the test**
 
@@ -662,8 +718,10 @@ The files below are the expected implementation surface. This planning task crea
 - Create: `e2e/m5-2-trip-lobby-mobile.spec.ts`
 
 **Interfaces:**
-- Consumes: the same real Trip fixture conventions as Task 11 and a Playwright context configured with `{ viewport: { width: 390, height: 844 }, hasTouch: true }`.
+- Consumes: the same real Trip fixture conventions as Task 11, a passed remote migration/acceptance gate, and a Playwright context configured with `{ viewport: { width: 390, height: 844 }, hasTouch: true }`.
 - Produces: proof that mobile drag, page scroll, controls, background rendering, bounds, and reload persistence coexist without horizontal overflow.
+
+This linked-project test is blocked until `REMOTE DDL APPROVED + REMOTE MIGRATION APPLIED + REMOTE ACCEPTANCE PASSED`; it must not become a workaround for testing an unapplied schema.
 
 - [ ] **Step 1: Write the failing mobile scenario**
 
@@ -673,7 +731,7 @@ The files below are the expected implementation surface. This planning task crea
 
   Run: `npm run test:e2e -- e2e/m5-2-trip-lobby-mobile.spec.ts`
 
-  Expected: Playwright fails because the Lobby page and mobile behavior do not exist.
+  Expected after the remote gate and before Lobby implementation: Playwright fails because the Lobby page and mobile behavior do not exist. Do not run this linked-project E2E before the remote migration/acceptance gate is green.
 
 - [ ] **Step 3: Run the mobile test after UI implementation**
 
@@ -696,7 +754,7 @@ The files below are the expected implementation surface. This planning task crea
 - Verify: all files listed in the File map and all existing Phase A/archived/private-file tests.
 
 **Interfaces:**
-- Consumes: implementation commits after Task 2's remote DDL approval, local SQL acceptance, approved environment credentials, and the repository's existing Vercel/production checklist.
+- Consumes: implementation commits after Task 2's remote DDL approval, exact remote migration-history verification, remote SQL acceptance/advisor verification, approved environment credentials, and the repository's existing Vercel/production checklist.
 - Produces: a verified Preview deployment, a normal merge to `main`, a controlled Production release in `hnd1`, and a cleanup report for isolated fixtures.
 
 - [ ] **Step 1: Run focused unit/component/API verification**
@@ -726,13 +784,13 @@ The files below are the expected implementation surface. This planning task crea
 
   Expected: SQL acceptance, lint, types, all Vitest tests, production build, diff whitespace, existing Board/archive regressions, desktop Lobby, and mobile Lobby all pass.
 
-- [ ] **Step 3: Apply the approved remote migration only after the explicit Task 2 gate**
+- [ ] **Step 3: Confirm the already-applied remote migration and acceptance remain correct**
 
-  Confirm the human approval is recorded for the complete migration report, then run the repository's linked migration command against target project `ltkqcjtdzlbtyqwurynp`. Re-run the schema/privilege/bucket/realtime acceptance checks against the linked project and record the migration version. If approval is absent, stop without executing remote DDL.
+  Do not apply DDL here. Re-run `npx supabase migration list --linked`, compare the canonical local and remote `20260928120000_trip_lobby` history row exactly once, and verify the remote schema/FK/RPC/grants/RLS/bucket/Realtime publication plus the remote SQL acceptance/advisor results. If any drift or failure is found, stop before release and do not rerun migration SQL automatically.
 
-- [ ] **Step 4: Create the feature branch only after approved remote DDL and local verification**
+- [ ] **Step 4: Push the isolated feature branch**
 
-  Create the requested `feature/trip-lobby` branch from the verified implementation state, push it normally, and do not force-push or create `develop`. This step is intentionally not performed while writing this plan.
+  From the already-created `feature/trip-lobby` worktree, push normally for review. Do not create `develop` and do not force-push. The branch must contain the approved spec/plan history and all implementation commits.
 
 - [ ] **Step 5: Deploy and verify Vercel Preview before main**
 
@@ -755,9 +813,10 @@ The files below are the expected implementation surface. This planning task crea
 - Server API/RPC architecture and authoritative identity: Tasks 2–6.
 - Normalized coordinates, `joined_at ASC, user_id ASC` fallback order, measured token-aware clamping, Pointer Events, one persistence request, rollback: Tasks 1, 3, 4, and 9.
 - Realtime isolation, final-position-after-drop, no intermediate pointer broadcast, safe DELETE handling, Lobby-only refetch: Task 8 and Task 9.
-- Migration acceptance and explicit remote DDL stop: Task 2.
+- Feature branch/worktree isolation before implementation: Execution start gate before Task 1.
+- Migration acceptance, explicit remote DDL stop, migration-history drift gate, remote acceptance, and advisors: Task 2.
 - Testing strategy and regression coverage: Tasks 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, and 13.
-- Preview → main → Production flow, `hnd1`, isolated fixture cleanup, and no direct Production deployment: Task 13.
+- Already-applied remote verification, feature branch push, Preview → main → Production flow, `hnd1`, isolated fixture cleanup, and no direct Production deployment: Task 13.
 - Explicit out-of-scope items are preserved in Global Constraints and Review Focus; no Phase C preparation was added.
 
 Placeholder scan: no unspecified “handle edge cases” step remains. Every implementation task names exact files, interfaces, a failing test, a failure command, a minimal implementation boundary, a success command, and a commit.
@@ -772,9 +831,6 @@ Placeholder scan: no unspecified “handle edge cases” step remains. Every imp
 
 ## Execution handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-09-28-paipa-trip-lobby.md`. Two execution options:
-
-1. **Subagent-Driven (recommended)** — dispatch a fresh subagent per task with review checkpoints between tasks; stop at the migration approval gate.
-2. **Inline Execution** — execute tasks in this session using `superpowers:executing-plans`, with the same commit and approval checkpoints.
+Plan complete and saved to `docs/superpowers/plans/2026-09-28-paipa-trip-lobby.md`. Recommended execution method: **Native / `superpowers:executing-plans`** — the DB, API, Storage, realtime, and UI interfaces are tightly connected, while the explicit worktree, DDL, Preview, and Production gates provide the required safety checkpoints.
 
 Wait for explicit plan approval and execution-method selection before implementing anything.
