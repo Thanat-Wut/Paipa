@@ -15,6 +15,7 @@ declare
   v_path text;
   v_x double precision;
   v_y double precision;
+  v_preset text;
   v_rpc regprocedure;
   v_table text;
   v_unique_count integer;
@@ -142,6 +143,69 @@ begin
   if not exists (select 1 from public.trip_lobbies where trip_id = v_trip and background_kind = 'custom' and preset_key is null) then
     raise exception 'custom Lobby state is invalid';
   end if;
+
+  foreach v_preset in array array['cozy', 'cabin', 'beach', 'chill'] loop
+    select public.set_trip_lobby_preset(v_owner, v_trip, v_preset) into v_path;
+    if not exists (
+      select 1 from public.trip_lobbies
+      where trip_id = v_trip
+        and background_kind = 'preset'
+        and preset_key = v_preset
+        and custom_storage_path is null
+    ) then
+      raise exception 'valid preset % was rejected', v_preset;
+    end if;
+  end loop;
+
+  v_path := v_other_trip::text || '/698cf99c-4eb8-4543-861b-e5c267e2da38.png';
+
+  begin
+    insert into public.trip_lobbies(trip_id, background_kind, preset_key, custom_storage_path)
+    values (v_other_trip, 'preset', null, null);
+    raise exception 'preset with NULL preset_key was accepted';
+  exception when check_violation then
+    null;
+  end;
+
+  begin
+    insert into public.trip_lobbies(trip_id, background_kind, preset_key, custom_storage_path)
+    values (v_other_trip, 'preset', 'invalid', null);
+    raise exception 'preset with invalid preset_key was accepted';
+  exception when check_violation then
+    null;
+  end;
+
+  begin
+    insert into public.trip_lobbies(trip_id, background_kind, preset_key, custom_storage_path)
+    values (v_other_trip, 'preset', 'cozy', v_path);
+    raise exception 'preset with custom_storage_path was accepted';
+  exception when check_violation then
+    null;
+  end;
+
+  begin
+    insert into public.trip_lobbies(trip_id, background_kind, preset_key, custom_storage_path)
+    values (v_other_trip, 'custom', 'cozy', v_path);
+    raise exception 'custom with non-NULL preset_key was accepted';
+  exception when check_violation then
+    null;
+  end;
+
+  begin
+    insert into public.trip_lobbies(trip_id, background_kind, preset_key, custom_storage_path)
+    values (v_other_trip, 'custom', null, null);
+    raise exception 'custom with NULL custom_storage_path was accepted';
+  exception when check_violation then
+    null;
+  end;
+
+  begin
+    insert into public.trip_lobbies(trip_id, background_kind, preset_key, custom_storage_path)
+    values (v_other_trip, 'custom', null, null);
+    raise exception 'custom with both nullable fields NULL was accepted';
+  exception when check_violation then
+    null;
+  end;
 
   begin
     perform public.update_trip_lobby_position(v_outsider, v_trip, 0.1, 0.1);
