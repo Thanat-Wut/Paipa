@@ -8,7 +8,7 @@ import { encodeSse, projectRealtimeEvent, REALTIME_RECONNECT_MS, REALTIME_SSE_HE
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type RealtimeScope = "board" | "chat" | "polls" | "plan" | "activity" | "lobby";
+type RealtimeScope = "board" | "chat" | "polls" | "plan" | "activity" | "lobby" | "memories";
 
 function errorResponse(status: number, code: string) {
   return Response.json({ code }, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -16,7 +16,7 @@ function errorResponse(status: number, code: string) {
 
 function requestedScope(request: Request): RealtimeScope | null {
   const scope = new URL(request.url).searchParams.get("scope");
-  return scope === "board" || scope === "chat" || scope === "polls" || scope === "plan" || scope === "activity" || scope === "lobby" ? scope : null;
+  return scope === "board" || scope === "chat" || scope === "polls" || scope === "plan" || scope === "activity" || scope === "lobby" || scope === "memories" ? scope : null;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ tripId: string }> }) {
@@ -58,6 +58,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
       const knownLobbyIds = new Set<string>();
       const knownLobbyPositionIds = new Set<string>();
       const knownOptionPollIds = new Map<string, string>();
+      const knownMemoryIds = new Map<string, string>();
+      let reseedMemories: (() => Promise<void>) | null = null;
       // A profile can vote in multiple Polls; key vote cache entries by the
       // composite row identity rather than profile_id alone.
       const knownVotePollIds = new Map<string, string>();
@@ -161,6 +163,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
             payload = { ...payload, old: { ...payload.old, trip_id: tripId } };
             knownActivityIds.delete(activityId);
           } else if (activityId) knownActivityIds.add(activityId);
+        } else if (payload.table === "trip_memories" || payload.table === "trip_memory_photos") {
+          const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+          const rowTripId = typeof row.trip_id === "string" ? row.trip_id : null;
+          const id = payload.table === "trip_memories"
+            ? rowTripId ?? (typeof row.id === "string" ? row.id : null)
+            : (typeof row.id === "string" ? row.id : null);
+          if (payload.eventType === "DELETE") {
+            if (!id || knownMemoryIds.get(id) !== tripId || (rowTripId && rowTripId !== tripId)) return;
+            payload = { ...payload, old: { ...payload.old, trip_id: tripId } };
+            knownMemoryIds.delete(id);
+          } else {
+            if (!id || rowTripId !== tripId) return;
+            knownMemoryIds.set(id, tripId);
+          }
         }
         void projectRealtimeEvent(payload, tripId, scope === "board" ? lookupNote : undefined, scope === "polls" ? lookupPoll : undefined).then((event) => {
           if (event) enqueue(event);
@@ -202,6 +218,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
         listen("chat_messages", "INSERT", `trip_id=eq.${tripId}`);
         listen("chat_messages", "UPDATE", `trip_id=eq.${tripId}`);
         listen("chat_messages", "DELETE");
+      } else if (scope === "memories") {
+        reseedMemories = async () => {
+          const [{ data: pageRows }, { data: photoRows }] = await Promise.all([
+            access.supabase.from("trip_memories").select("trip_id").eq("trip_id", tripId),
+            access.supabase.from("trip_memory_photos").select("id, trip_id").eq("trip_id", tripId),
+          ]);
+          knownMemoryIds.clear();
+          for (const row of pageRows ?? []) {
+            if (typeof row.trip_id === "string" && row.trip_id === tripId) knownMemoryIds.set(row.trip_id, tripId);
+          }
+          for (const row of photoRows ?? []) {
+            if (typeof row.id === "string" && row.trip_id === tripId) knownMemoryIds.set(row.id, tripId);
+          }
+        };
+        void reseedMemories().catch(() => undefined);
+        listen("trip_memories", "INSERT", `trip_id=eq.${tripId}`);
+        listen("trip_memories", "UPDATE", `trip_id=eq.${tripId}`);
+        listen("trip_memories", "DELETE");
+        listen("trip_memory_photos", "INSERT", `trip_id=eq.${tripId}`);
+        listen("trip_memory_photos", "UPDATE", `trip_id=eq.${tripId}`);
+        listen("trip_memory_photos", "DELETE");
       }
       if (scope === "polls") {
         const loadKnownPolls = async () => {
@@ -238,6 +275,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
         listen("trip_activities", "DELETE");
       }
       channel.subscribe((status) => {
+        if (status === "SUBSCRIBED" && reseedMemories) void reseedMemories().catch(() => undefined);
         if (status !== "SUBSCRIBED") enqueue({ scope, status: String(status) });
       });
       enqueue({ scope, status: "READY", tripId });

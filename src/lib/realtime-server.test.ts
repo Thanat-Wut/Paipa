@@ -11,6 +11,7 @@ const POLL_OPTION_ID = "1126b37d-7da7-43f6-a961-1a46ae2a2ec1";
 const PLAN_ITEM_ID = "3d66f9f8-1ae7-41e2-9993-5ec2d6ea0d3a";
 const ACTIVITY_ID = "3d9f2c5a-4efb-4f70-a42b-7bf4a72e0f1a";
 const MEMBER_ID = "7f4cf3bd-67d5-4827-9b6f-995e589b5d20";
+const MEMORY_PHOTO_ID = "6f4cf3bd-67d5-4827-9b6f-995e589b5d20";
 
 function payload(table: string, eventType: RealtimePayload["eventType"], next: Record<string, unknown>, old: Record<string, unknown> = {}): RealtimePayload {
   return { schema: "public", table, commit_timestamp: "2026-09-25T12:30:00.000Z", eventType, new: next, old };
@@ -68,5 +69,34 @@ describe("M3.3 realtime event projection", () => {
     await expect(projectRealtimeEvent(payload("trip_lobbies", "UPDATE", { trip_id: TRIP_ID, preset_key: "secret" }), TRIP_ID)).resolves.toEqual({ scope: "lobby", entity: "lobby", action: "upsert", id: TRIP_ID, tripId: TRIP_ID });
     await expect(projectRealtimeEvent(payload("trip_lobby_positions", "DELETE", {}, { trip_id: TRIP_ID, user_id: MEMBER_ID, position_x: 0.8 }), TRIP_ID)).resolves.toEqual({ scope: "lobby", entity: "lobby", action: "delete", id: `${TRIP_ID}:${MEMBER_ID}`, tripId: TRIP_ID });
     await expect(projectRealtimeEvent(payload("trip_lobby_positions", "INSERT", { trip_id: OTHER_TRIP_ID, user_id: MEMBER_ID }), TRIP_ID)).resolves.toBeNull();
+  });
+
+  it("projects Memories page and photo changes without exposing private row contents", async () => {
+    await expect(projectRealtimeEvent(payload("trip_memories", "INSERT", { trip_id: TRIP_ID, template_key: "travel_postcard", storage_path: "secret" }), TRIP_ID)).resolves.toEqual({
+      scope: "memories",
+      entity: "memory",
+      action: "upsert",
+      id: TRIP_ID,
+      tripId: TRIP_ID,
+    });
+    await expect(projectRealtimeEvent(payload("trip_memory_photos", "UPDATE", { id: MEMORY_PHOTO_ID, trip_id: TRIP_ID, storage_path: "secret", uploader_id: MEMBER_ID, focus_x: 0.1 }), TRIP_ID)).resolves.toEqual({
+      scope: "memories",
+      entity: "photo",
+      action: "upsert",
+      id: MEMORY_PHOTO_ID,
+      tripId: TRIP_ID,
+    });
+    await expect(projectRealtimeEvent(payload("trip_memory_photos", "DELETE", {}, { id: MEMORY_PHOTO_ID, trip_id: TRIP_ID, storage_path: "secret" }), TRIP_ID)).resolves.toEqual({
+      scope: "memories",
+      entity: "photo",
+      action: "delete",
+      id: MEMORY_PHOTO_ID,
+      tripId: TRIP_ID,
+    });
+  });
+
+  it("rejects Memories changes from another Trip", async () => {
+    await expect(projectRealtimeEvent(payload("trip_memories", "UPDATE", { trip_id: OTHER_TRIP_ID }), TRIP_ID)).resolves.toBeNull();
+    await expect(projectRealtimeEvent(payload("trip_memory_photos", "DELETE", {}, { id: MEMORY_PHOTO_ID, trip_id: OTHER_TRIP_ID }), TRIP_ID)).resolves.toBeNull();
   });
 });

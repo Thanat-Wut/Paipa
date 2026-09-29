@@ -10,8 +10,8 @@ export type RealtimePayload = {
 };
 
 export type ProjectedRealtimeEvent = {
-  scope: "board" | "chat" | "polls" | "plan" | "activity" | "lobby";
-  entity: "note" | "like" | "comment" | "message" | "poll" | "option" | "vote" | "plan_item" | "activity" | "lobby";
+  scope: "board" | "chat" | "polls" | "plan" | "activity" | "lobby" | "memories";
+  entity: "note" | "like" | "comment" | "message" | "poll" | "option" | "vote" | "plan_item" | "activity" | "lobby" | "memory" | "photo";
   action: "upsert" | "delete";
   id: string;
   tripId: string;
@@ -92,6 +92,19 @@ export async function projectRealtimeEvent(payload: RealtimePayload, tripId: str
     const id = stringValue(row.id);
     if (!rowTripId || rowTripId !== tripId || !id) return null;
     return { scope: "activity", entity: "activity", action, id, tripId };
+  }
+
+  if (payload.table === "trip_memories" || payload.table === "trip_memory_photos") {
+    const rowTripId = stringValue(row.trip_id);
+    const id = payload.table === "trip_memories" ? rowTripId : stringValue(row.id);
+    if (!rowTripId || rowTripId !== tripId || !id) return null;
+    return {
+      scope: "memories",
+      entity: payload.table === "trip_memories" ? "memory" : "photo",
+      action,
+      id,
+      tripId,
+    };
   }
 
   if (payload.table !== "board_note_likes" && payload.table !== "board_note_comments") return null;

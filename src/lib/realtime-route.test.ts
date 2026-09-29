@@ -16,6 +16,8 @@ const ACTOR_ID = "c61c0258-57a4-4a1b-9f4d-4e44f4ab19d1";
 const CHAT_MESSAGE_ID = "2d66f9f8-1ae7-41e2-9993-5ec2d6ea0d3a";
 const POLL_ID = "52a9de93-48cb-49c2-a2bc-42bc8a9033f0";
 const ACTIVITY_ID = "3d9f2c5a-4efb-4f70-a42b-7bf4a72e0f1a";
+const MEMORY_PHOTO_ID = "6f4cf3bd-67d5-4827-9b6f-995e589b5d20";
+const RESEEDED_MEMORY_PHOTO_ID = "8f4cf3bd-67d5-4827-9b6f-995e589b5d20";
 
 function request() {
   return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=chat`);
@@ -31,11 +33,15 @@ function activityRequest() {
 function lobbyRequest() {
   return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=lobby`);
 }
+function memoriesRequest() {
+  return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=memories`);
+}
 
 describe("M3.3 realtime SSE route", () => {
   let subscribeHandler: ((status: string, error?: Error) => void) | undefined;
   const listeners: Array<{ config: Record<string, unknown>; handler: (payload: Record<string, unknown>) => void }> = [];
   const removeChannel = vi.fn(async () => "ok");
+  let memoryPhotoRows = [{ id: MEMORY_PHOTO_ID, trip_id: TRIP_ID }];
   const channel = {
     on: vi.fn((_: string, config: Record<string, unknown>, handler: (payload: Record<string, unknown>) => void) => { listeners.push({ config, handler }); return channel; }),
     subscribe: vi.fn((handler: (status: string, error?: Error) => void) => { subscribeHandler = handler; return channel; }),
@@ -49,6 +55,8 @@ describe("M3.3 realtime SSE route", () => {
         : table === "poll_options" ? [{ id: "1126b37d-7da7-43f6-a961-1a46ae2a2ec1", poll_id: POLL_ID }]
         : table === "poll_votes" ? [{ profile_id: ACTOR_ID, poll_id: POLL_ID }]
         : table === "trip_activities" ? [{ id: ACTIVITY_ID }]
+        : table === "trip_memories" ? [{ trip_id: TRIP_ID }]
+        : table === "trip_memory_photos" ? memoryPhotoRows
         : [];
       return {
         select: vi.fn(() => ({
@@ -64,6 +72,7 @@ describe("M3.3 realtime SSE route", () => {
     vi.clearAllMocks();
     listeners.length = 0;
     subscribeHandler = undefined;
+    memoryPhotoRows = [{ id: MEMORY_PHOTO_ID, trip_id: TRIP_ID }];
     identityMock.mockResolvedValue({ id: ACTOR_ID, displayName: "Owner" });
     readTripMock.mockResolvedValue({ supabase, trip: { id: TRIP_ID, owner_id: ACTOR_ID, status: "planning" }, isOwner: true });
     adminMock.mockReturnValue(supabase);
@@ -204,6 +213,57 @@ describe("M3.3 realtime SSE route", () => {
     expect(tables).toEqual(expect.arrayContaining(["trip_lobbies", "trip_lobby_positions"]));
     expect(tables).not.toContain("board_notes");
     expect(tables).not.toContain("chat_messages");
+    await reader?.cancel();
+  });
+
+  it("opens only Memories listeners and accepts an existing photo DELETE without trip_id", async () => {
+    const { GET } = await import("@/app/api/trips/[tripId]/realtime/route");
+    const response = await GET(memoriesRequest(), { params: Promise.resolve({ tripId: TRIP_ID }) });
+    const reader = response.body?.getReader();
+    await reader?.read();
+    await Promise.resolve();
+    const tables = listeners.map(({ config }) => config.table);
+    expect(tables).toEqual(expect.arrayContaining(["trip_memories", "trip_memory_photos"]));
+    expect(tables).not.toContain("chat_messages");
+    expect(tables).not.toContain("board_notes");
+
+    const deleteListener = listeners.find(({ config }) => config.table === "trip_memory_photos" && config.event === "DELETE");
+    expect(deleteListener).toBeDefined();
+    deleteListener?.handler({ schema: "public", table: "trip_memory_photos", commit_timestamp: new Date().toISOString(), eventType: "DELETE", new: {}, old: { id: MEMORY_PHOTO_ID, storage_path: "secret" } });
+    await Promise.resolve();
+    const next = await reader?.read();
+    const bytes = new TextDecoder().decode(next?.value);
+    expect(bytes).toContain('"scope":"memories"');
+    expect(bytes).toContain('"entity":"photo"');
+    expect(bytes).toContain('"action":"delete"');
+    expect(bytes).toContain(`"tripId":"${TRIP_ID}"`);
+    expect(bytes).not.toContain("storage_path");
+
+    deleteListener?.handler({ schema: "public", table: "trip_memory_photos", commit_timestamp: new Date().toISOString(), eventType: "DELETE", new: {}, old: { id: MEMORY_PHOTO_ID } });
+    const ignored = await Promise.race([
+      reader?.read().then(() => "emitted"),
+      new Promise<string>((resolve) => setTimeout(() => resolve("ignored"), 20)),
+    ]);
+    expect(ignored).toBe("ignored");
+    await reader?.cancel();
+  });
+
+  it("reseeds the authorized Memories cache when the channel reports SUBSCRIBED", async () => {
+    const { GET } = await import("@/app/api/trips/[tripId]/realtime/route");
+    const response = await GET(memoriesRequest(), { params: Promise.resolve({ tripId: TRIP_ID }) });
+    const reader = response.body?.getReader();
+    await reader?.read();
+    await Promise.resolve();
+
+    memoryPhotoRows = [{ id: RESEEDED_MEMORY_PHOTO_ID, trip_id: TRIP_ID }];
+    subscribeHandler?.("SUBSCRIBED");
+    await Promise.resolve();
+    await Promise.resolve();
+    const deleteListener = listeners.find(({ config }) => config.table === "trip_memory_photos" && config.event === "DELETE");
+    deleteListener?.handler({ schema: "public", table: "trip_memory_photos", commit_timestamp: new Date().toISOString(), eventType: "DELETE", new: {}, old: { id: RESEEDED_MEMORY_PHOTO_ID } });
+    await Promise.resolve();
+    const next = await reader?.read();
+    expect(new TextDecoder().decode(next?.value)).toContain(`"id":"${RESEEDED_MEMORY_PHOTO_ID}"`);
     await reader?.cancel();
   });
 });
