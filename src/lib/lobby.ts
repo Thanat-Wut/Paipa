@@ -5,6 +5,25 @@ export type LobbyPosition = { x: number; y: number };
 export type LobbyPositionBounds = { maxX: number; maxY: number };
 export type LobbyRosterMember = { userId: string; joinedAt: string };
 
+export type LobbyMember = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  position: LobbyPosition;
+};
+
+export type LobbyBackground = {
+  kind: "preset" | "custom";
+  presetKey: LobbyPresetKey | null;
+  backgroundUrl: string | null;
+};
+
+export type LobbyResponse = {
+  tripId: string;
+  background: LobbyBackground;
+  members: LobbyMember[];
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
