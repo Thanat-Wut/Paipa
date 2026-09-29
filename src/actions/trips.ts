@@ -10,6 +10,7 @@ import { mapDeleteTripError } from "@/lib/trip-summary";
 import { loadTripDeletionState } from "@/lib/trip-summary-server";
 import { isOwnedStoragePath } from "@/lib/storage-path";
 import { safeServerErrorMessage } from "@/lib/server-error";
+import { captureLobbyCustomPath, cleanupUnreferencedLobbyObject } from "@/lib/lobby-storage-server";
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -179,8 +180,19 @@ export async function deleteTrip(form: FormData) {
     .filter((member) => typeof member.signature_path === "string" && isOwnedStoragePath("signature", member.user_id, member.signature_path))
     .map((member) => member.signature_path as string);
 
+  let lobbyCustomPath: string | null = null;
+  try {
+    lobbyCustomPath = await captureLobbyCustomPath(supabase, tripId);
+  } catch {
+    fail(path, "ตรวจสอบพื้นหลังห้องของทริปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+
   const { error } = await supabase.rpc("delete_trip", { p_actor_id: identity.id, p_trip_id: tripId });
   if (error) fail(path, mapDeleteTripError(error));
+  if (lobbyCustomPath) {
+    const cleanup = await cleanupUnreferencedLobbyObject(supabase, lobbyCustomPath);
+    if (cleanup.error) fail("/trips", "ลบทริปแล้ว แต่ล้างพื้นหลังห้องบางส่วนไม่สำเร็จ กรุณาติดต่อผู้ดูแลระบบ");
+  }
   if (signaturePaths.length) {
     const { data: remainingMembers, error: remainingError } = await supabase
       .from("trip_members")
