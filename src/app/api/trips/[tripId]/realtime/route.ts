@@ -254,7 +254,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
         try { controller.close(); } catch { /* stream already closed */ }
         void cleanup();
       }, REALTIME_RECONNECT_MS);
-      request.signal.addEventListener("abort", () => { closed = true; void cleanup(); }, { once: true });
+      request.signal.addEventListener("abort", () => { closed = true; try { controller.close(); } catch { /* stream already closed */ } void cleanup(); }, { once: true });
     },
     async cancel() { await cleanup(); },
   });

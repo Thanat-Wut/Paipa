@@ -200,7 +200,7 @@ test("M3.1 Board drags one note, persists on drop, syncs to another member, and 
     await expect.poll(() => ownerNote.getAttribute("style")).not.toBe(ownerStyleBefore);
 
     await memberPage.reload();
-    await ownerPage.reload();
+    await ownerPage.goto(`/trips/${tripId}/board`, { waitUntil: "domcontentloaded" });
     await expect(memberPage.locator(`[data-note-id="${noteId}"]`).getByRole("button", { name: "ลากเพื่อย้าย ขยับโน้ต" })).toBeVisible();
     await expect(ownerPage.locator(`[data-note-id="${noteId}"]`).getByRole("button", { name: "ลากเพื่อย้าย ขยับโน้ต" })).toBeVisible();
 

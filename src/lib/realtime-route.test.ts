@@ -98,6 +98,22 @@ describe("M3.3 realtime SSE route", () => {
     expect(removeChannel).toHaveBeenCalledWith(channel);
   });
 
+  it("closes the SSE stream when the request is aborted", async () => {
+    const { GET } = await import("@/app/api/trips/[tripId]/realtime/route");
+    const abortController = new AbortController();
+    const response = await GET(new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=chat`, { signal: abortController.signal }), { params: Promise.resolve({ tripId: TRIP_ID }) });
+    const reader = response.body?.getReader();
+    await reader?.read();
+    const pendingRead = reader?.read();
+    abortController.abort();
+    const result = await Promise.race([
+      pendingRead,
+      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 50)),
+    ]);
+    if (result === undefined) await reader?.cancel();
+    expect(result).toEqual({ done: true, value: undefined });
+  });
+
   it("gracefully closes before the Vercel function limit so EventSource can reconnect", async () => {
     vi.useFakeTimers();
     try {
