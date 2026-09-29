@@ -1,21 +1,21 @@
 "use client";
 
-import { CalendarDays, House, MessageCircle, MoreHorizontal, ScrollText, Settings2, StickyNote, UsersRound, Vote, WalletCards } from "lucide-react";
+import { Armchair, CalendarDays, House, MessageCircle, MoreHorizontal, ScrollText, Settings2, StickyNote, UsersRound, Vote, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-export type MobileNavIcon = "home" | "board" | "chat" | "plan" | "poll" | "members" | "money" | "summary" | "settings";
+export type MobileNavIcon = "home" | "lobby" | "board" | "chat" | "plan" | "poll" | "members" | "money" | "summary" | "settings";
 export type MobileNavItem = { href: string; label: string; icon: MobileNavIcon };
 
-const icons = { home: House, board: StickyNote, chat: MessageCircle, plan: CalendarDays, poll: Vote, members: UsersRound, money: WalletCards, summary: ScrollText, settings: Settings2 } as const;
+const icons = { home: House, lobby: Armchair, board: StickyNote, chat: MessageCircle, plan: CalendarDays, poll: Vote, members: UsersRound, money: WalletCards, summary: ScrollText, settings: Settings2 } as const;
 
 export function TripMobileNav({ items }: { items: MobileNavItem[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const primaryLabels = new Set(["Home", "Board", "Chat", "Plan"]);
+  const primaryLabels = new Set(["Home", "Lobby", "Board", "Chat"]);
   const primary = items.filter((item) => primaryLabels.has(item.label));
   const secondary = items.filter((item) => !primaryLabels.has(item.label));
   const isActive = (href: string) => href === items[0]?.href ? pathname === href : pathname.startsWith(href);
