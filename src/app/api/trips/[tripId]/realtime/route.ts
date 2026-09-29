@@ -8,7 +8,7 @@ import { encodeSse, projectRealtimeEvent, REALTIME_RECONNECT_MS, REALTIME_SSE_HE
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type RealtimeScope = "board" | "chat" | "polls" | "plan" | "activity";
+type RealtimeScope = "board" | "chat" | "polls" | "plan" | "activity" | "lobby";
 
 function errorResponse(status: number, code: string) {
   return Response.json({ code }, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -16,7 +16,7 @@ function errorResponse(status: number, code: string) {
 
 function requestedScope(request: Request): RealtimeScope | null {
   const scope = new URL(request.url).searchParams.get("scope");
-  return scope === "board" || scope === "chat" || scope === "polls" || scope === "plan" || scope === "activity" ? scope : null;
+  return scope === "board" || scope === "chat" || scope === "polls" || scope === "plan" || scope === "activity" || scope === "lobby" ? scope : null;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ tripId: string }> }) {
@@ -55,6 +55,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
       const knownPollIds = new Set<string>();
       const knownPlanItemIds = new Set<string>();
       const knownActivityIds = new Set<string>();
+      const knownLobbyIds = new Set<string>();
+      const knownLobbyPositionIds = new Set<string>();
       const knownOptionPollIds = new Map<string, string>();
       // A profile can vote in multiple Polls; key vote cache entries by the
       // composite row identity rather than profile_id alone.
@@ -78,7 +80,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
       };
 
       const onPayload = (payload: RealtimePayload) => {
-        if (payload.table === "board_notes") {
+        if (payload.table === "trip_lobbies" || payload.table === "trip_lobby_positions") {
+          const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+          const id = payload.table === "trip_lobbies"
+            ? (typeof row.trip_id === "string" ? row.trip_id : null)
+            : (typeof row.trip_id === "string" && typeof row.user_id === "string" ? row.trip_id + ":" + row.user_id : null);
+          const cache = payload.table === "trip_lobbies" ? knownLobbyIds : knownLobbyPositionIds;
+          if (payload.eventType === "DELETE") {
+            if (!id || !cache.has(id)) return;
+            const old = payload.table === "trip_lobby_positions" && id.includes(":")
+              ? { ...payload.old, trip_id: tripId, user_id: id.split(":")[1] }
+              : { ...payload.old, trip_id: tripId };
+            payload = { ...payload, old };
+            cache.delete(id);
+          } else if (id) cache.add(id);
+        } else if (payload.table === "board_notes") {
           const row = payload.eventType === "DELETE" ? payload.old : payload.new;
           const noteId = typeof row.id === "string" ? row.id : null;
           if (payload.eventType === "DELETE") {
@@ -155,7 +171,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ trip
       const listen = (table: string, event: RealtimeEventType | "*", filter?: string) => {
         channel?.on("postgres_changes", { event, schema: "public", table, ...(filter ? { filter } : {}) }, onPayload);
       };
-      if (scope === "board") {
+      if (scope === "lobby") {
+        void access.supabase.from("trip_lobbies").select("trip_id").eq("trip_id", tripId).then(({ data }) => {
+          for (const row of data ?? []) if (typeof row.trip_id === "string") knownLobbyIds.add(row.trip_id);
+        });
+        void access.supabase.from("trip_lobby_positions").select("trip_id, user_id").eq("trip_id", tripId).then(({ data }) => {
+          for (const row of data ?? []) if (typeof row.trip_id === "string" && typeof row.user_id === "string") knownLobbyPositionIds.add(row.trip_id + ":" + row.user_id);
+        });
+        listen("trip_lobbies", "INSERT", "trip_id=eq." + tripId);
+        listen("trip_lobbies", "UPDATE", "trip_id=eq." + tripId);
+        listen("trip_lobbies", "DELETE");
+        listen("trip_lobby_positions", "INSERT", "trip_id=eq." + tripId);
+        listen("trip_lobby_positions", "UPDATE", "trip_id=eq." + tripId);
+        listen("trip_lobby_positions", "DELETE");
+      } else if (scope === "board") {
         const loadKnownNotes = access.supabase.from("board_notes").select("id").eq("trip_id", tripId);
         void loadKnownNotes.then(({ data }) => {
           for (const row of data ?? []) if (typeof row.id === "string") knownNoteIds.add(row.id);

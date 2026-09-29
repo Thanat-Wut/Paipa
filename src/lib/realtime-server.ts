@@ -10,8 +10,8 @@ export type RealtimePayload = {
 };
 
 export type ProjectedRealtimeEvent = {
-  scope: "board" | "chat" | "polls" | "plan" | "activity";
-  entity: "note" | "like" | "comment" | "message" | "poll" | "option" | "vote" | "plan_item" | "activity";
+  scope: "board" | "chat" | "polls" | "plan" | "activity" | "lobby";
+  entity: "note" | "like" | "comment" | "message" | "poll" | "option" | "vote" | "plan_item" | "activity" | "lobby";
   action: "upsert" | "delete";
   id: string;
   tripId: string;
@@ -34,6 +34,15 @@ export async function projectRealtimeEvent(payload: RealtimePayload, tripId: str
   if (payload.schema !== "public") return null;
   const row = rowFor(payload);
   const action = payload.eventType === "DELETE" ? "delete" : "upsert";
+
+  if (payload.table === "trip_lobbies" || payload.table === "trip_lobby_positions") {
+    const rowTripId = stringValue(row.trip_id);
+    const id = payload.table === "trip_lobbies"
+      ? rowTripId
+      : rowTripId && stringValue(row.user_id) ? `${rowTripId}:${row.user_id}` : null;
+    if (!rowTripId || rowTripId !== tripId || !id) return null;
+    return { scope: "lobby", entity: "lobby", action, id, tripId };
+  }
 
   if (payload.table === "board_notes" || payload.table === "chat_messages") {
     const rowTripId = stringValue(row.trip_id);

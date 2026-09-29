@@ -10,6 +10,7 @@ const POLL_ID = "52a9de93-48cb-49c2-a2bc-42bc8a9033f0";
 const POLL_OPTION_ID = "1126b37d-7da7-43f6-a961-1a46ae2a2ec1";
 const PLAN_ITEM_ID = "3d66f9f8-1ae7-41e2-9993-5ec2d6ea0d3a";
 const ACTIVITY_ID = "3d9f2c5a-4efb-4f70-a42b-7bf4a72e0f1a";
+const MEMBER_ID = "7f4cf3bd-67d5-4827-9b6f-995e589b5d20";
 
 function payload(table: string, eventType: RealtimePayload["eventType"], next: Record<string, unknown>, old: Record<string, unknown> = {}): RealtimePayload {
   return { schema: "public", table, commit_timestamp: "2026-09-25T12:30:00.000Z", eventType, new: next, old };
@@ -61,5 +62,11 @@ describe("M3.3 realtime event projection", () => {
   it("projects Activity events only for the requested Trip", async () => {
     await expect(projectRealtimeEvent(payload("trip_activities", "INSERT", { id: ACTIVITY_ID, trip_id: TRIP_ID }), TRIP_ID)).resolves.toEqual({ scope: "activity", entity: "activity", action: "upsert", id: ACTIVITY_ID, tripId: TRIP_ID });
     await expect(projectRealtimeEvent(payload("trip_activities", "DELETE", {}, { id: ACTIVITY_ID, trip_id: OTHER_TRIP_ID }), TRIP_ID)).resolves.toBeNull();
+  });
+
+  it("projects Lobby rows without exposing row contents", async () => {
+    await expect(projectRealtimeEvent(payload("trip_lobbies", "UPDATE", { trip_id: TRIP_ID, preset_key: "secret" }), TRIP_ID)).resolves.toEqual({ scope: "lobby", entity: "lobby", action: "upsert", id: TRIP_ID, tripId: TRIP_ID });
+    await expect(projectRealtimeEvent(payload("trip_lobby_positions", "DELETE", {}, { trip_id: TRIP_ID, user_id: MEMBER_ID, position_x: 0.8 }), TRIP_ID)).resolves.toEqual({ scope: "lobby", entity: "lobby", action: "delete", id: `${TRIP_ID}:${MEMBER_ID}`, tripId: TRIP_ID });
+    await expect(projectRealtimeEvent(payload("trip_lobby_positions", "INSERT", { trip_id: OTHER_TRIP_ID, user_id: MEMBER_ID }), TRIP_ID)).resolves.toBeNull();
   });
 });

@@ -28,6 +28,9 @@ function pollRequest() {
 function activityRequest() {
   return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=activity`);
 }
+function lobbyRequest() {
+  return new Request(`http://localhost/api/trips/${TRIP_ID}/realtime?scope=lobby`);
+}
 
 describe("M3.3 realtime SSE route", () => {
   let subscribeHandler: ((status: string, error?: Error) => void) | undefined;
@@ -172,6 +175,19 @@ describe("M3.3 realtime SSE route", () => {
     const next = await reader?.read();
     expect(new TextDecoder().decode(next?.value)).toContain(`"entity":"activity"`);
     expect(new TextDecoder().decode(next?.value)).toContain(`"action":"delete"`);
+    await reader?.cancel();
+  });
+
+  it("opens only Lobby listeners", async () => {
+    const { GET } = await import("@/app/api/trips/[tripId]/realtime/route");
+    const response = await GET(lobbyRequest(), { params: Promise.resolve({ tripId: TRIP_ID }) });
+    const reader = response.body?.getReader();
+    await reader?.read();
+    await Promise.resolve();
+    const tables = listeners.map(({ config }) => config.table);
+    expect(tables).toEqual(expect.arrayContaining(["trip_lobbies", "trip_lobby_positions"]));
+    expect(tables).not.toContain("board_notes");
+    expect(tables).not.toContain("chat_messages");
     await reader?.cancel();
   });
 });
