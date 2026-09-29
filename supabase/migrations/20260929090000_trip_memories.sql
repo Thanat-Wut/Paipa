@@ -181,6 +181,7 @@ begin
        'slot_01', 'slot_02', 'slot_03', 'slot_04', 'slot_05',
        'slot_06', 'slot_07', 'slot_08', 'slot_09', 'slot_10'
      )
+     or p_mime_type is null
      or p_mime_type not in ('image/jpeg', 'image/png', 'image/webp')
      or p_file_size_bytes is null
      or p_file_size_bytes not between 1 and 4194304 then
@@ -330,7 +331,7 @@ begin
   for update;
 
   if found then
-    if v_target.uploader_id <> p_actor_id then
+    if v_target.uploader_id is distinct from p_actor_id then
       raise exception 'MEMORY_SLOT_OCCUPIED';
     end if;
 

@@ -289,6 +289,21 @@ begin
   exception when others then
     if sqlerrm not like '%VALIDATION_ERROR%' then raise; end if;
   end;
+  v_photo_id := gen_random_uuid();
+  v_path := v_legacy_trip::text || '/' || v_photo_id::text || '.jpg';
+  begin
+    perform public.create_trip_memory_photo(
+      v_owner, v_legacy_trip, v_photo_id, 'slot_01', v_path, null, 1024
+    );
+    raise exception 'NULL MIME type should be denied';
+  exception when others then
+    if sqlerrm not like '%VALIDATION_ERROR%' then raise; end if;
+  end;
+  if exists (select 1 from public.trip_memories where trip_id = v_legacy_trip)
+     or exists (select 1 from public.trip_memory_photos where trip_id = v_legacy_trip)
+     or exists (select 1 from public.trip_memory_photos where id = v_photo_id) then
+    raise exception 'NULL MIME validation left unexpected page/photo residue';
+  end if;
 
   perform public.update_trip_memory_photo_placement(v_member, v_member_photo, 0.25, 0.75, 1.35);
   begin
@@ -351,6 +366,31 @@ begin
     where id = v_member_photo and slot_key = 'slot_01'
   ) then
     raise exception 'failed move changed the original assignment';
+  end if;
+
+  -- A deleted profile leaves its photo in place but removes ownership. A
+  -- remaining member must not swap into that former-member slot.
+  delete from public.profiles where id = v_other_member;
+  if not exists (
+    select 1 from public.trip_memory_photos
+    where id = v_other_photo and slot_key = 'slot_02' and uploader_id is null
+  ) then
+    raise exception 'former-member photo was not preserved with a null uploader';
+  end if;
+  begin
+    perform public.move_trip_memory_photo(v_member, v_member_photo, 'slot_02');
+    raise exception 'member must not overwrite a former-member photo';
+  exception when others then
+    if sqlerrm not like '%MEMORY_SLOT_OCCUPIED%' then raise; end if;
+  end;
+  if not exists (
+    select 1 from public.trip_memory_photos
+    where id = v_member_photo and slot_key = 'slot_01'
+  ) or not exists (
+    select 1 from public.trip_memory_photos
+    where id = v_other_photo and slot_key = 'slot_02' and uploader_id is null
+  ) then
+    raise exception 'former-member target rejection changed an existing assignment';
   end if;
 
   begin
