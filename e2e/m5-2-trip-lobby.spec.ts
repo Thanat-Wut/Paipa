@@ -1,6 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { expect, test, type Browser, type Page } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { expect, test, type Page } from "@playwright/test";
 
 type Identity = { id: string; displayName: string };
 function adminClient(): SupabaseClient { const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL; const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY; if (!url || !key) throw new Error("M5.2 Lobby E2E requires real Supabase configuration."); return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }); }
