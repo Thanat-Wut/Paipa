@@ -27,6 +27,7 @@ export async function readLobbyTrip(tripId: string, actorId: string) {
 }
 
 export async function loadLobby(supabase: ReturnType<typeof createAdminClient>, tripId: string, _actorId: string): Promise<LobbyResponse> {
+  void _actorId;
   const [{ data: members, error: memberError }, { data: lobby, error: lobbyError }, { data: positions, error: positionError }] = await Promise.all([
     supabase.from("trip_members").select("user_id, display_name, avatar_url, joined_at").eq("trip_id", tripId).order("joined_at", { ascending: true }).order("user_id", { ascending: true }),
     supabase.from("trip_lobbies").select("background_kind, preset_key, custom_storage_path").eq("trip_id", tripId).maybeSingle(),
