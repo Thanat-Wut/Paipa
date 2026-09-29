@@ -64,9 +64,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
   } catch { return lobbyJsonError(503, "LOBBY_SERVICE_UNAVAILABLE"); }
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ tripId: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ tripId: string }> }) {
   const tripId = normalizeTripId((await params).tripId);
   if (!tripId) return lobbyJsonError(404, "TRIP_NOT_FOUND");
+  if (new URL(request.url).searchParams.has("path")) return lobbyJsonError(400, "VALIDATION_ERROR");
   let identity;
   try { identity = await getOptionalIdentity(); } catch { return lobbyJsonError(503, "LOBBY_SERVICE_UNAVAILABLE"); }
   if (!identity) return lobbyJsonError(401, "IDENTITY_REQUIRED");
