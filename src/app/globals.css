@@ -346,3 +346,22 @@ h1,h2,h3,p { margin-top:0; }
 @media print {
   body { background:#fff!important; }.sidebar,.bottom-nav,.trip-topbar,.no-print { display:none!important; }.trip-shell { display:block; }.trip-content { max-width:none; padding:0; }.trip-summary-page { gap:12px; }.panel,.summary-hero,.summary-stat-grid article { break-inside:avoid; box-shadow:none; border:1px solid #dce5ee; }.summary-layout { gap:12px; }.summary-stat-grid { gap:8px; }
 }
+
+/* Phase C shared Memories scrapbook shell */
+.memories-workspace { display:grid; gap:18px; min-width:0; }
+.memories-toolbar { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; padding:24px 28px; border:2px solid #fff; border-radius:25px; background:linear-gradient(135deg,#eafaff,#fff3dc 55%,#f8eafd); box-shadow:0 10px 25px rgba(14,165,233,.1),inset 0 2px 4px rgba(255,255,255,.9); }
+.memories-toolbar h2 { margin:5px 0 4px; font-size:23px; }
+.memories-toolbar p { margin:0; color:#7890aa; font-size:12px; }
+.memories-toolbar-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+.memories-archived { padding:8px 11px; border-radius:999px; background:#fff7df; color:#8d6d26; font-size:11px; font-weight:800; }
+.memories-page { position:relative; width:100%; max-width:900px; aspect-ratio:1 / 1; margin:0 auto; overflow:hidden; border:9px solid #fff; border-radius:28px; background:#fffaf1; box-shadow:0 12px 30px rgba(14,165,233,.12),inset 0 2px 4px rgba(255,255,255,.9); }
+.memories-page-photobooth_strip { background:linear-gradient(135deg,#f9fdff,#eaf7ff); }
+.memories-page-polaroid_board { background:linear-gradient(135deg,#fffdf7,#fff4dc); }
+.memories-page-scrapbook_page { background:linear-gradient(135deg,#fffaf1,#fff1f6); }
+.memories-page-travel_postcard { background:linear-gradient(135deg,#f0fbff,#edf2ff); }
+.memories-slot { position:absolute; display:grid; place-items:center; overflow:hidden; border:4px solid rgba(255,255,255,.95); border-radius:13px; background:rgba(255,255,255,.68); box-shadow:0 5px 14px rgba(72,96,130,.1),inset 0 1px 2px rgba(255,255,255,.9); }
+.memories-slot img { width:100%; height:100%; display:block; object-fit:cover; transform-origin:center; }
+.memories-slot-empty { padding:8px; color:#9aaac0; font-size:11px; font-weight:700; text-align:center; }
+.memories-state { display:grid; justify-items:center; gap:10px; padding:45px 20px; text-align:center; }
+.memories-state p { margin:0; color:#7890aa; }
+@media(max-width:650px) { .memories-toolbar { align-items:stretch; flex-direction:column; padding:20px; }.memories-toolbar-actions { justify-content:flex-start; }.memories-toolbar-actions .button { flex:1; }.memories-page { border-width:6px; border-radius:20px; }.memories-slot { border-width:3px; border-radius:9px; }.memories-slot-empty { padding:4px; font-size:9px; } }
