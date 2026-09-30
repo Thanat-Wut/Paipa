@@ -11,6 +11,7 @@ import { loadTripDeletionState } from "@/lib/trip-summary-server";
 import { isOwnedStoragePath } from "@/lib/storage-path";
 import { safeServerErrorMessage } from "@/lib/server-error";
 import { captureLobbyCustomPath, cleanupUnreferencedLobbyObject } from "@/lib/lobby-storage-server";
+import { captureMemoryPhotoPaths, cleanupUnreferencedMemoryObject } from "@/lib/memories-storage-server";
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -187,8 +188,25 @@ export async function deleteTrip(form: FormData) {
     fail(path, "ตรวจสอบพื้นหลังห้องของทริปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
   }
 
+  let memoryPhotoPaths: string[] = [];
+  try {
+    memoryPhotoPaths = await captureMemoryPhotoPaths(supabase, tripId);
+  } catch {
+    fail(path, "ตรวจสอบรูปความทรงจำของทริปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  }
+
   const { error } = await supabase.rpc("delete_trip", { p_actor_id: identity.id, p_trip_id: tripId });
   if (error) fail(path, mapDeleteTripError(error));
+  for (const memoryPhotoPath of memoryPhotoPaths) {
+    const cleanup = await cleanupUnreferencedMemoryObject(supabase, memoryPhotoPath);
+    if (cleanup.error) {
+      console.warn("[trip-memories] orphan Storage object after Trip deletion", {
+        tripId,
+        path: memoryPhotoPath,
+        error: cleanup.error.message,
+      });
+    }
+  }
   if (lobbyCustomPath) {
     const cleanup = await cleanupUnreferencedLobbyObject(supabase, lobbyCustomPath);
     if (cleanup.error) fail("/trips", "ลบทริปแล้ว แต่ล้างพื้นหลังห้องบางส่วนไม่สำเร็จ กรุณาติดต่อผู้ดูแลระบบ");
