@@ -120,7 +120,7 @@ h1,h2,h3,p { margin-top:0; }
 .trip-shell { grid-template-columns:260px minmax(0,1fr); }
 .sidebar { background:rgba(255,255,255,.9); border-right:2px solid #fff; box-shadow:5px 0 18px rgba(2,132,199,.045); }
 .sidebar-trip { border:2px solid #fff; background:linear-gradient(135deg,#e0f4ff,#fdf2f8); box-shadow:0 7px 18px rgba(56,189,248,.12),inset 0 2px 3px rgba(255,255,255,.85); }
-.sidebar-nav { gap:8px; }
+.sidebar-nav { flex:1; min-height:0; overflow-y:auto; gap:8px; }
 .sidebar-nav a { border:1px solid transparent; border-radius:16px; transition:background .15s,color .15s,transform .15s,box-shadow .15s; }
 .sidebar-nav a:hover { transform:translateX(2px); border-color:#fff; background:#f0f9ff; box-shadow:0 5px 12px rgba(56,189,248,.1); }
 .sidebar-nav a svg { color:#38bdf8; }
